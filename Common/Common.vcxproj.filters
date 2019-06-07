@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="intersect">
+      <UniqueIdentifier>{969FBC12-020A-7189-4B48-222FB7F14EDE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="physics">
+      <UniqueIdentifier>{A823A1AC-1403-2048-1D1B-AB1E897986A9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\App.h" />
+    <ClInclude Include="src\Common.h" />
+    <ClInclude Include="src\EntryPoint.h" />
+    <ClInclude Include="src\PjCommon.h" />
+    <ClInclude Include="src\intersect\Aabb.h">
+      <Filter>intersect</Filter>
+    </ClInclude>
+    <ClInclude Include="src\intersect\Hit.h">
+      <Filter>intersect</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pch.h" />
+    <ClInclude Include="src\physics\Rigidbody.h">
+      <Filter>physics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Input.h" />
+    <ClInclude Include="src\physics\ForceEmitter.h" />
+    <ClInclude Include="src\Utils.h" />
+    <ClInclude Include="src\physics\RectForceEmitterContinuous.h" />
+    <ClInclude Include="src\Stage.h" />
+    <ClInclude Include="src\StageSnapshot.h" />
+    <ClInclude Include="src\physics\RectForceEmitterPulsating.h" />
+    <ClInclude Include="src\NetMessage.h" />
+    <ClInclude Include="src\PjState.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\App.cpp" />
+    <ClCompile Include="src\PjCommon.cpp" />
+    <ClCompile Include="src\intersect\Aabb.cpp">
+      <Filter>intersect</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp" />
+    <ClCompile Include="src\physics\Rigidbody.cpp">
+      <Filter>physics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\physics\RectForceEmitterContinuous.cpp" />
+    <ClCompile Include="src\physics\ForceEmitter.cpp" />
+    <ClCompile Include="src\Stage.cpp" />
+    <ClCompile Include="src\physics\RectForceEmitterPulsating.cpp" />
+  </ItemGroup>
+</Project>
