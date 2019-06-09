@@ -193,99 +193,86 @@ namespace rmkl {
 		// TODO ack inputs
 	}
 
+	void GraphicApp::OnNetworkConnected(const ENetEvent& e) {}
+
+	void GraphicApp::OnNetworkDisconnected(const ENetEvent& e)
+	{
+		e.peer->data = nullptr;
+	}
+
+	void GraphicApp::OnNetworkReceived(const ENetEvent& e)
+	{
+		Tp type = *(Tp*)(e.packet->data);
+		switch (type)
+		{
+		case Tp::stateUpdate:
+		{
+			PjState state = NetMessage::DeserializeState(e.packet->data);
+			Pj& pj = m_Pjs.at(state.Id);
+			if (pj.GetMode() == PjModes::PREDICTED)
+				utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
+			pj.UpdateState(state, *m_Stage);
+			break;
+		}
+		case Tp::spawnPj:
+		{
+			MSpawn mSpawn = NetMessage::DeserializeSpawn(e.packet->data);
+			m_Pjs.insert_or_assign(mSpawn.id, Pj(mSpawn.id, mSpawn.x, mSpawn.y));
+			std::cout << "spawn pj " << mSpawn.id << std::endl;
+			break;
+		}
+		case Tp::removePj:
+		{
+			int id = NetMessage::DeserializeInt(e.packet->data);
+			m_Pjs.erase(id);
+			std::cout << "remove pj " << id << std::endl;
+			break;
+		}
+		case Tp::setControlledPjId:
+		{
+			int id = NetMessage::DeserializeInt(e.packet->data);
+
+			if (m_ControlledPj != -1)
+				m_Pjs.at(m_ControlledPj).SetMode(PjModes::INTERPOLATED);
+
+			m_ControlledPj = id;
+			if (m_ControlledPj != -1)
+				m_Pjs.at(m_ControlledPj).SetMode(PjModes::PREDICTED);
+
+			std::cout << "set controlled pj " << id << std::endl;
+			break;
+		}
+		case Tp::setSpectatingPjId:
+		{
+			int id = NetMessage::DeserializeInt(e.packet->data);
+			m_SpectatingPj = id;
+			std::cout << "set spectating pj " << id << std::endl;
+			break;
+		}
+		case Tp::syncTickNumber:
+		{
+			int tick = NetMessage::DeserializeInt(e.packet->data);
+			float tickrate = 1.0f / FIXED_UPDATE_FPS;
+			float rtt = 0.15f;
+			float serverInputBuffer = tickrate;
+			float forward = rtt + serverInputBuffer;
+			m_Stage->PhysicsTick = tick + (int)(forward / tickrate) + 1;
+			std::cout << "sync ticknumber " << std::endl;
+			break;
+		}
+		case Tp::wall:
+		{
+			break;
+		}
+		case Tp::forceEmitter:
+		{
+			break;
+		}
+		}
+	}
 
 	void GraphicApp::Update(double dt) 
 	{
-		ENetEvent event;
-		while (enet_host_service(m_EnetHost, &event, 0) > 0)
-		{
-			switch (event.type)
-			{
-			case ENET_EVENT_TYPE_CONNECT:
-			{
-				break;
-			}
-
-			case ENET_EVENT_TYPE_RECEIVE:
-			{
-				Tp type = *(Tp*)(event.packet->data);
-				switch (type)
-				{
-				case Tp::stateUpdate:
-				{
-					PjState state = NetMessage::DeserializeState(event.packet->data);
-					Pj& pj = m_Pjs.at(state.Id);
-					if (pj.GetMode() == PjModes::PREDICTED)
-						utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
-					pj.UpdateState(state, *m_Stage);
-					break;
-				}
-				case Tp::spawnPj:
-				{
-					MSpawn mSpawn = NetMessage::DeserializeSpawn(event.packet->data);
-					m_Pjs.insert_or_assign(mSpawn.id, Pj(mSpawn.id, mSpawn.x, mSpawn.y));
-					std::cout << "spawn pj " << mSpawn.id << std::endl;
-					break;
-				}
-				case Tp::removePj:
-				{
-					int id = NetMessage::DeserializeInt(event.packet->data);
-					m_Pjs.erase(id);
-					std::cout << "remove pj " << id << std::endl;
-					break;
-				}
-				case Tp::setControlledPjId:
-				{
-					int id = NetMessage::DeserializeInt(event.packet->data);
-
-					if (m_ControlledPj != -1)
-						m_Pjs.at(m_ControlledPj).SetMode(PjModes::INTERPOLATED);
-
-					m_ControlledPj = id;
-					if (m_ControlledPj != -1)
-						m_Pjs.at(m_ControlledPj).SetMode(PjModes::PREDICTED);
-
-					std::cout << "set controlled pj " << id << std::endl;
-					break;
-				}
-				case Tp::setSpectatingPjId:
-				{
-					int id = NetMessage::DeserializeInt(event.packet->data);
-					m_SpectatingPj = id;
-					std::cout << "set spectating pj " << id << std::endl;
-					break;
-				}
-				case Tp::syncTickNumber:
-				{
-					int tick = NetMessage::DeserializeInt(event.packet->data);
-					float tickrate = 1.0f / FIXED_UPDATE_FPS;
-					float rtt = 0.15f;
-					float serverInputBuffer = tickrate;
-					float forward = rtt + serverInputBuffer;
-					m_Stage->PhysicsTick = tick + (int)(forward / tickrate) + 1;
-					std::cout << "sync ticknumber " << std::endl;
-					break;
-				}
-				case Tp::wall:
-				{
-					break;
-				}
-				case Tp::forceEmitter:
-				{
-					break;
-				}
-				}
-
-				enet_packet_destroy(event.packet);
-				break;
-			}
-
-			case ENET_EVENT_TYPE_DISCONNECT:
-			{
-				event.peer->data = NULL;
-			}
-			}
-		}
 	}
 
 	void GraphicApp::Render(double interpolationAlpha)

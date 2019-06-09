@@ -20,6 +20,11 @@ namespace rmkl {
 		void Update(double dt);
 		void Render(double interpolationAlpha);
 
+	protected:
+		virtual void OnNetworkConnected(const ENetEvent& e) override;
+		virtual void OnNetworkDisconnected(const ENetEvent& e) override;
+		virtual void OnNetworkReceived(const ENetEvent& e) override;
+
 	private:
 		void SetPjOwnership(int pjId, int clientId);
 		void RemovePjOwnership(int pjId, bool sendIdUpdate);

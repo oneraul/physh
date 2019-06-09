@@ -14,6 +14,9 @@ namespace rmkl {
 		virtual void FixedUpdate() = 0;
 		virtual void Update(double dt) = 0;
 		virtual void Render(double interpolationAlpha) = 0;
+		virtual void OnNetworkConnected(const ENetEvent& e) = 0;
+		virtual void OnNetworkDisconnected(const ENetEvent& e) = 0;
+		virtual void OnNetworkReceived(const ENetEvent& e) = 0;
 
 		inline int GetTargetFps() const { return m_TargetFps; }
 		inline bool GetLimitFps() const { return m_LimitFps; }
@@ -28,6 +31,7 @@ namespace rmkl {
 	private:
 		inline double GetTargetFrameDuration() const { return 1.0 / m_TargetFps; }
 		inline double GetFixedFrameDuration() const { return 1.0 / m_FixedUpdateFps; }
+		void ProcessNetworkEvents();
 	private:
 		bool m_LimitFps;
 		double m_PreviousTime;

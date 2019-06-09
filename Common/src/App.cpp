@@ -37,6 +37,7 @@ namespace rmkl {
 			m_Lag += elapsedTime;
 
 			glfwPollEvents();
+			ProcessNetworkEvents();
 
 			while (m_Lag >= GetFixedFrameDuration())
 			{
@@ -52,4 +53,26 @@ namespace rmkl {
 		}
 	}
 
+	void App::ProcessNetworkEvents()
+	{
+		ENetEvent event;
+		while (enet_host_service(m_EnetHost, &event, 0) > 0)
+		{
+			switch (event.type)
+			{
+			case ENET_EVENT_TYPE_CONNECT:
+				OnNetworkConnected(event);
+				break;
+
+			case ENET_EVENT_TYPE_RECEIVE:
+				OnNetworkReceived(event);
+				enet_packet_destroy(event.packet);
+				break;
+
+			case ENET_EVENT_TYPE_DISCONNECT:
+				OnNetworkDisconnected(event);
+				break;
+			}
+		}
+	}
 }

@@ -21,80 +21,67 @@ namespace rmkl {
 		std::cout << "SERVER started" << std::endl;
 	}
 
-	ServerApp::~ServerApp()
+	ServerApp::~ServerApp() {}
+
+	void ServerApp::OnNetworkConnected(const ENetEvent& e) 
 	{
+		std::cout << "Someone connected" << std::endl;
+		auto&[pair, succeed] = Clients.insert_or_assign(e.peer->connectID, Client(e.peer));
+		Client& client = pair->second;
+
+		e.peer->data = malloc(sizeof(int));
+		memcpy(e.peer->data, &e.peer->connectID, sizeof(unsigned int));
+
+		NetMessage::SendTo(Tp::syncTickNumber, m_Stage->PhysicsTick, client.EnetPeer);
+
+		// update the new client with the info about the other players
+		for (auto&[id, pj] : m_Pjs)
+		{
+			NetMessage::SendTo(MSpawn{ Tp::spawnPj,
+				id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y,
+				pj.Spritesheet, pj.Palette }, client.EnetPeer);
+		}
+
+		// instantiate new pj
+		float x = 6.0f, y = 2.0f;
+		ServerPj pj(x, y);
+		m_Pjs.insert({ pj.m_Id, pj });
+		NetMessage::SendToAll(MSpawn{ Tp::spawnPj,
+			pj.m_Id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y,
+			pj.Spritesheet, pj.Palette }, m_EnetHost);
+
+		SetPjOwnership(pj.m_Id, client.Id);
+		NetMessage::SendTo(Tp::setSpectatingPjId, pj.m_Id, client.EnetPeer);
+
+		// TODO walls and emitters
+	}
+
+	void ServerApp::OnNetworkDisconnected(const ENetEvent& e)
+	{
+		unsigned int clientId = *(unsigned int*)e.peer->data;
+		if (int pjId = Clients.at(clientId).ControlledPj; pjId != 0)
+		{
+			m_Pjs.erase(pjId);
+			NetMessage::SendToAll(Tp::removePj, pjId, m_EnetHost);
+		}
+		Clients.erase(clientId);
+
+		e.peer->data = nullptr;
+		std::cout << "client " << clientId << " disconnected" << std::endl;
+	}
+
+	void ServerApp::OnNetworkReceived(const ENetEvent& e)
+	{
+		Tp type = *(Tp*)(e.packet->data);
+		if (type == Tp::input)
+		{
+			Input input = NetMessage::DeserializeInput(e.packet->data);
+			Clients.at(e.peer->connectID).InputBuffer.emplace_back(input);
+		}
 	}
 
 	void ServerApp::Update(double dt) 
 	{
-		ENetEvent event;
-		while (enet_host_service(m_EnetHost, &event, 0) > 0)
-		{
-			switch (event.type)
-			{
-			case ENET_EVENT_TYPE_CONNECT:
-			{
-				std::cout << "Someone connected" << std::endl;
-				auto& [pair, succeed] = Clients.insert_or_assign(event.peer->connectID, Client(event.peer));
-				Client& client = pair->second;
-
-				event.peer->data = malloc(sizeof(int));
-				memcpy(event.peer->data, &event.peer->connectID, sizeof(unsigned int));
-
-				NetMessage::SendTo(Tp::syncTickNumber, m_Stage->PhysicsTick, client.EnetPeer);
-
-				// update the new client with the info about the other players
-				for (auto&[id, pj] : m_Pjs) 
-				{
-					NetMessage::SendTo(MSpawn{ Tp::spawnPj, 
-						id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y, 
-						pj.Spritesheet, pj.Palette }, client.EnetPeer);
-				}
-
-				// instantiate new pj
-				float x = 6.0f, y = 2.0f;
-				ServerPj pj(x, y);
-				m_Pjs.insert({ pj.m_Id, pj });
-				NetMessage::SendToAll(MSpawn{ Tp::spawnPj,
-					pj.m_Id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y, 
-					pj.Spritesheet, pj.Palette }, m_EnetHost);
-
-				SetPjOwnership(pj.m_Id, client.Id);
-				NetMessage::SendTo(Tp::setSpectatingPjId, pj.m_Id, client.EnetPeer);
-
-				// TODO walls and emitters
-
-				break;
-			}
-			case ENET_EVENT_TYPE_RECEIVE:
-			{
-				Tp type = *(Tp*)(event.packet->data);
-				if (type == Tp::input)
-				{
-					Input input = NetMessage::DeserializeInput(event.packet->data);
-					Clients.at(event.peer->connectID).InputBuffer.emplace_back(input);
-				}
-
-				enet_packet_destroy(event.packet);
-				break;
-			}
-			case ENET_EVENT_TYPE_DISCONNECT:
-			{
-				unsigned int clientId = *(unsigned int*)event.peer->data;
-				if (int pjId = Clients.at(clientId).ControlledPj; pjId != 0)
-				{
-					m_Pjs.erase(pjId);
-					NetMessage::SendToAll(Tp::removePj, pjId, m_EnetHost);
-				}
-				Clients.erase(clientId);
-
-				event.peer->data = NULL;
-				std::cout << "client " << clientId << " disconnected" << std::endl;
-			}
-			}
-		}
-
-
 		m_UpdateAccumulator += dt;
 		if (m_UpdateAccumulator >= (1.0f / SERVER_TICKRATE))
 		{

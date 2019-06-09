@@ -19,6 +19,12 @@ namespace rmkl {
 		inline int GetWindowHeight() const { return m_WindowHeight; }
 		inline bool GetVsync() const { return m_Vsync; }
 		void SetVsync(bool value);
+
+	protected:
+		virtual void OnNetworkConnected(const ENetEvent& e) override;
+		virtual void OnNetworkDisconnected(const ENetEvent& e) override;
+		virtual void OnNetworkReceived(const ENetEvent& e) override;
+
 	private:
 		virtual void FixedUpdate() override;
 		virtual void Update(double dt) override;
