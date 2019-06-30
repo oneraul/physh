@@ -12,7 +12,6 @@ namespace rmkl {
 	public:
 		ENetPeer* EnetPeer;
 		int Id;
-		std::vector<int> Acks;
 		std::vector<Input> InputBuffer;
 		int ControlledPj;
 	};

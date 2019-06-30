@@ -32,26 +32,26 @@ namespace rmkl {
 		e.peer->data = malloc(sizeof(int));
 		memcpy(e.peer->data, &e.peer->connectID, sizeof(unsigned int));
 
-		NetMessage::SendTo(Tp::syncTickNumber, m_Stage->PhysicsTick, client.EnetPeer);
+		NetMessage::SendTo(NetMessage::Type::syncTickNumber, m_Stage->PhysicsTick, client.EnetPeer);
 
 		// update the new client with the info about the other players
 		for (auto&[id, pj] : m_Pjs)
 		{
-			NetMessage::SendTo(MSpawn{ Tp::spawnPj,
-				id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y,
-				pj.Spritesheet, pj.Palette }, client.EnetPeer);
+			NetMessage::SendTo(NetMessage::Type::spawnPj, 
+				PjSpawnState { id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y, pj.Spritesheet, pj.Palette },
+				client.EnetPeer);
 		}
 
 		// instantiate new pj
 		float x = 6.0f, y = 2.0f;
 		ServerPj pj(x, y);
 		m_Pjs.insert({ pj.m_Id, pj });
-		NetMessage::SendToAll(MSpawn{ Tp::spawnPj,
-			pj.m_Id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y,
-			pj.Spritesheet, pj.Palette }, m_EnetHost);
+		NetMessage::SendToAll(NetMessage::Type::spawnPj,
+			PjSpawnState{ pj.m_Id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y, pj.Spritesheet, pj.Palette },
+			m_EnetHost);
 
 		SetPjOwnership(pj.m_Id, client.Id);
-		NetMessage::SendTo(Tp::setSpectatingPjId, pj.m_Id, client.EnetPeer);
+		NetMessage::SendTo(NetMessage::Type::setSpectatingPjId, pj.m_Id, client.EnetPeer);
 
 		// TODO walls and emitters
 	}
@@ -62,7 +62,7 @@ namespace rmkl {
 		if (int pjId = Clients.at(clientId).ControlledPj; pjId != 0)
 		{
 			m_Pjs.erase(pjId);
-			NetMessage::SendToAll(Tp::removePj, pjId, m_EnetHost);
+			NetMessage::SendToAll(NetMessage::Type::removePj, pjId, m_EnetHost);
 		}
 		Clients.erase(clientId);
 
@@ -72,11 +72,25 @@ namespace rmkl {
 
 	void ServerApp::OnNetworkReceived(const ENetEvent& e)
 	{
-		Tp type = *(Tp*)(e.packet->data);
-		if (type == Tp::input)
+		NetMessage::Type type = *(NetMessage::Type*)(e.packet->data);
+		if (type == NetMessage::Type::input)
 		{
-			Input input = NetMessage::DeserializeInput(e.packet->data);
-			Clients.at(e.peer->connectID).InputBuffer.emplace_back(input);
+			auto& inputBuffer = Clients.at(e.peer->connectID).InputBuffer;
+
+			size_t stride = sizeof(NetMessage::Type);
+			int count = NetMessage::unpack<int>(e.packet->data, stride);
+			std::cout << count << std::endl;
+			for (int i = 0; i < count; i++)
+			{
+				inputBuffer.emplace_back(Input{
+					NetMessage::unpack<float>(e.packet->data, stride),
+					NetMessage::unpack<float>(e.packet->data, stride),
+					NetMessage::unpack<int>(e.packet->data, stride),
+					NetMessage::unpack<int>(e.packet->data, stride)
+				});
+			}
+			std::sort(inputBuffer.begin(), inputBuffer.end());
+			inputBuffer.erase(std::unique(inputBuffer.begin(), inputBuffer.end()), inputBuffer.end());
 		}
 	}
 
@@ -87,22 +101,39 @@ namespace rmkl {
 		{
 			m_UpdateAccumulator -= (1.0f / SERVER_TICKRATE);
 
-			/*local packet = { pjs = {} }
-			for _, pj in pairs(pjs) do
-				table.insert(packet.pjs, pj:serializeState(physicsTickNumber))
-			end
 
-			for _, client in ipairs(server:getClients()) do
-				local clientId = client:getConnectId()
-				packet.acks = acks[clientId]
-				client : send("stateUpdate", packet)
-				acks[clientId] = {}
-				packet.acks = nil
-			end*/
+			std::vector<PjState> _states;
+			_states.reserve(m_Pjs.size());
 			for (auto&[pjId, pj] : m_Pjs)
+				_states.emplace_back(pj.SerializeState(m_Stage->PhysicsTick));
+			int statesCount = static_cast<int>(_states.size());
+
+			NetMessage::Type messageType = NetMessage::Type::stateUpdate;
+			for (auto&[clientId, client] : Clients)
 			{
-				NetMessage::SendToAll(pj.SerializeState(m_Stage->PhysicsTick), m_EnetHost);
+				size_t size = sizeof(NetMessage::Type) + sizeof(int) + sizeof(PjState) * statesCount;
+				char* packet = (char*)malloc(size);
+				size_t stride = 0;
+				NetMessage::pack(packet, stride, messageType);
+				NetMessage::pack(packet, stride, statesCount);
+				for (int i = 0; i < statesCount; i++)
+				{
+					PjState& state = _states.at(i);
+					NetMessage::pack(packet, stride, state.Tick);
+					NetMessage::pack(packet, stride, state.Id);
+					NetMessage::pack(packet, stride, state.posX);
+					NetMessage::pack(packet, stride, state.posY);
+					NetMessage::pack(packet, stride, state.inputVX);
+					NetMessage::pack(packet, stride, state.inputVY);
+					NetMessage::pack(packet, stride, state.nonInputVX);
+					NetMessage::pack(packet, stride, state.nonInputVY);
+				}
+
+				ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_RELIABLE);
+				enet_peer_send(client.EnetPeer, 0, p);
+				free(packet);
 			}
+
 		}
 	}
 
@@ -118,14 +149,13 @@ namespace rmkl {
 			if (pj.m_ControlledByClient)
 			{
 				Client& client = Clients.at(pj.m_ClientId);
-				auto it = std::find_if(client.InputBuffer.begin(), client.InputBuffer.end(),
+				auto input = std::find_if(client.InputBuffer.begin(), client.InputBuffer.end(),
 					[=](const Input& input) -> bool { return input.Tick == tick; });
 
-				if (it != client.InputBuffer.end())
+				if (input != client.InputBuffer.end())
 				{
-					pj.FixedUpdate(*it, *m_Stage);
+					pj.FixedUpdate(*input, *m_Stage);
 					pj.m_History.try_emplace(tick, pj.SerializeState(tick));
-					client.Acks.emplace_back(tick);
 				}
 			}
 
@@ -153,7 +183,7 @@ namespace rmkl {
 		pj.m_ClientId = clientId;
 		client.ControlledPj = pjId;
 
-		NetMessage::SendTo(Tp::setControlledPjId, pjId, client.EnetPeer);
+		NetMessage::SendTo(NetMessage::Type::setControlledPjId, pjId, client.EnetPeer);
 	}
 
 	void ServerApp::RemovePjOwnership(int pjId, bool sendIdUpdate)
@@ -166,7 +196,7 @@ namespace rmkl {
 
 			client.ControlledPj = -1;
 			if (sendIdUpdate)
-				NetMessage::SendTo(Tp::setControlledPjId, -1, client.EnetPeer);
+				NetMessage::SendTo(NetMessage::Type::setControlledPjId, -1, client.EnetPeer);
 
 			pj->m_ControlledByClient = false;
 			pj->m_ClientId = 0;

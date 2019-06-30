@@ -119,7 +119,6 @@ namespace rmkl {
 		ServiceLocator::ProvideInput(&m_PendingInputs);
 		ServiceLocator::ProvideInterpolationAlpha(&m_InterpolationAlpha);
 		ServiceLocator::ProvidePhysicsTick(&(m_Stage->PhysicsTick));
-		
 	}
 
 	GraphicApp::~GraphicApp()
@@ -183,14 +182,26 @@ namespace rmkl {
 
 	void GraphicApp::SendInput(Input input)
 	{
-		//m_NonAckedInputs.insert({ input.PhysicsTick, input });
-		// TODO send all non acked inputs in the same packet
-		NetMessage::Send(input, m_EnetHost);
-	}
+		NetMessage::Type type = NetMessage::Type::input;
+		int count = static_cast<int>(m_PendingInputs.size());
 
-	void GraphicApp::ReceiveState()
-	{
-		// TODO ack inputs
+		size_t size = sizeof(NetMessage::Type) + sizeof(int) + (sizeof(Input) * count);
+		char* packet = (char*)malloc(size);
+		size_t stride = 0;
+		NetMessage::pack(packet, stride, type);
+		NetMessage::pack(packet, stride, count);
+		for (int i = 0; i < count; i++) 
+		{
+			Input& input = m_PendingInputs.at(i);
+			NetMessage::pack<float>(packet, stride, input.X);
+			NetMessage::pack<float>(packet, stride, input.Y);
+			NetMessage::pack<int>(packet, stride, input.Space);
+			NetMessage::pack<int>(packet, stride, input.Tick);
+		}
+
+		ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_RELIABLE);
+		enet_host_broadcast(m_EnetHost, 0, p);
+		free(packet);
 	}
 
 	void GraphicApp::OnNetworkConnected(const ENetEvent& e) {}
@@ -202,35 +213,52 @@ namespace rmkl {
 
 	void GraphicApp::OnNetworkReceived(const ENetEvent& e)
 	{
-		Tp type = *(Tp*)(e.packet->data);
+		enet_uint8* data = e.packet->data;
+		NetMessage::Type type = *(NetMessage::Type*)(data);
 		switch (type)
 		{
-		case Tp::stateUpdate:
+		case NetMessage::Type::stateUpdate:
 		{
-			PjState state = NetMessage::DeserializeState(e.packet->data);
-			Pj& pj = m_Pjs.at(state.Id);
-			if (pj.GetMode() == PjModes::PREDICTED)
-				utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
-			pj.UpdateState(state, *m_Stage);
+			size_t stride = sizeof(NetMessage::Type);
+			int count = NetMessage::unpack<int>(data, stride);
+			for (int i = 0; i < count; i++)
+			{
+				PjState state{
+					NetMessage::unpack<int>(data, stride),
+					NetMessage::unpack<int>(data, stride),
+					NetMessage::unpack<float>(data, stride),
+					NetMessage::unpack<float>(data, stride),
+					NetMessage::unpack<float>(data, stride),
+					NetMessage::unpack<float>(data, stride),
+					NetMessage::unpack<float>(data, stride),
+					NetMessage::unpack<float>(data, stride)
+				};
+
+				Pj& pj = m_Pjs.at(state.Id);
+				if (pj.GetMode() == PjModes::PREDICTED)
+					utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
+
+				pj.UpdateState(state, *m_Stage);
+			}
 			break;
 		}
-		case Tp::spawnPj:
+		case NetMessage::Type::spawnPj:
 		{
-			MSpawn mSpawn = NetMessage::DeserializeSpawn(e.packet->data);
-			m_Pjs.insert_or_assign(mSpawn.id, Pj(mSpawn.id, mSpawn.x, mSpawn.y));
-			std::cout << "spawn pj " << mSpawn.id << std::endl;
+			PjSpawnState spawn = NetMessage::unpackOne<PjSpawnState>(data);
+			m_Pjs.insert_or_assign(spawn.Id, Pj(spawn.Id, spawn.posX, spawn.posY));
+			std::cout << "spawn pj " << spawn.Id << std::endl;
 			break;
 		}
-		case Tp::removePj:
+		case NetMessage::Type::removePj:
 		{
-			int id = NetMessage::DeserializeInt(e.packet->data);
+			int id = NetMessage::unpackOne<int>(data);
 			m_Pjs.erase(id);
 			std::cout << "remove pj " << id << std::endl;
 			break;
 		}
-		case Tp::setControlledPjId:
+		case NetMessage::Type::setControlledPjId:
 		{
-			int id = NetMessage::DeserializeInt(e.packet->data);
+			int id = NetMessage::unpackOne<int>(data);
 
 			if (m_ControlledPj != -1)
 				m_Pjs.at(m_ControlledPj).SetMode(PjModes::INTERPOLATED);
@@ -242,16 +270,16 @@ namespace rmkl {
 			std::cout << "set controlled pj " << id << std::endl;
 			break;
 		}
-		case Tp::setSpectatingPjId:
+		case NetMessage::Type::setSpectatingPjId:
 		{
-			int id = NetMessage::DeserializeInt(e.packet->data);
+			int id = NetMessage::unpackOne<int>(data);
 			m_SpectatingPj = id;
 			std::cout << "set spectating pj " << id << std::endl;
 			break;
 		}
-		case Tp::syncTickNumber:
+		case NetMessage::Type::syncTickNumber:
 		{
-			int tick = NetMessage::DeserializeInt(e.packet->data);
+			int tick = NetMessage::unpackOne<int>(data);
 			float tickrate = 1.0f / FIXED_UPDATE_FPS;
 			float rtt = 0.15f;
 			float serverInputBuffer = tickrate;
@@ -260,16 +288,17 @@ namespace rmkl {
 			std::cout << "sync ticknumber " << std::endl;
 			break;
 		}
-		case Tp::wall:
+		case NetMessage::Type::wall:
 		{
 			break;
 		}
-		case Tp::forceEmitter:
+		case NetMessage::Type::forceEmitter:
 		{
 			break;
 		}
 		}
 	}
+
 
 	void GraphicApp::Update(double dt) 
 	{
@@ -359,7 +388,7 @@ namespace rmkl {
 
 		ImGui::Text("Physics tick %i", m_Stage->PhysicsTick);
 		ImGui::Text("%ims RTT", m_EnetHost->peers->roundTripTime);
-		ImGui::Text("%i non acked inputs", m_PendingInputs.size());
+		ImGui::Text("%i pending inputs", m_PendingInputs.size());
 		ImGui::SliderFloat("Packet loss", &m_PacketLoss, 0.0f, 1.0f);
 
 		ImGui::SliderFloat("ViewX", &m_Cam[0], -7.0f, 14.0f);

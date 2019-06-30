@@ -31,7 +31,6 @@ namespace rmkl {
 		virtual void Render(double interpolationAlpha) override;
 		void RenderImGui();
 		void SendInput(Input input);
-		void ReceiveState();
 
 	private:
 		std::vector<Input> m_PendingInputs;
