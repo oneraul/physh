@@ -26,4 +26,12 @@ namespace rmkl {
 		inline glm::vec2 GetInputV() const { return glm::vec2(inputVX, inputVY); }
 		inline glm::vec2 GetNonInputV() const { return glm::vec2(nonInputVX, nonInputVY); }
 	};
+
+	struct PjSpawnState
+	{
+		int Id;
+		float posX, posY;
+		int Spritesheet;
+		int Palette;
+	};
 }
