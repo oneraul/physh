@@ -26,10 +26,10 @@ namespace rmkl {
 		std::map<int, PjState> m_History;
 
 	private:
-		float m_Cd;
+		int m_Cd;
 
 	private:
-		static const float s_CdDuration;
+		static const int s_CdDuration;
 	};
 
 }

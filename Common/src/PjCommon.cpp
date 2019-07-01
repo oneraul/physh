@@ -4,7 +4,7 @@
 
 namespace rmkl {
 
-	const float PjCommon::s_CdDuration = utils::secondsToTicks(2.0f);
+	const int PjCommon::s_CdDuration = utils::secondsToTicks(2.0f);
 
 	PjCommon::PjCommon(int id, Rigidbody body)
 		: m_Id(id), m_Body(body), m_Cd(0), Spritesheet(0), Palette(0)
@@ -47,7 +47,7 @@ namespace rmkl {
 	}
 	void PjCommon::UpdateCd()
 	{
-		m_Cd = std::max((m_Cd - 1.0f), 0.0f);
+		m_Cd = std::max((--m_Cd), 0);
 	}
 
 }
