@@ -18,7 +18,7 @@ namespace rmkl {
 		if (pj.m_History.count(state.Tick) == 0) return;
 
 		Rigidbody& body = pj.m_Body;
-		std::vector<Input>* pendingInputs = ServiceLocator::GetInput();
+		std::vector<Input> pendingInputs = ServiceLocator::GetInput();
 
 		// if there was a desync on the tick jsut received, reconciliate
 		vec2 serverPos = vec2{ state.posX, state.posY };
@@ -34,7 +34,7 @@ namespace rmkl {
 			body.m_NonInputV = vec2{ state.nonInputVX, state.nonInputVY };
 
 			// resimulate
-			for (Input& input : *pendingInputs)
+			for (Input& input : pendingInputs)
 			{
 				int tick = input.Tick;
 				pj.ApplyStageSnapshot(tick, stage);
@@ -60,14 +60,14 @@ namespace rmkl {
 
 	glm::vec2 LocallyPredictedPj::GetRawInterpolatedPos(Pj& pj)
 	{
-		std::vector<Input>* pendingInputs = ServiceLocator::GetInput();
+		std::vector<Input> pendingInputs = ServiceLocator::GetInput();
 		vec2 pos = pj.m_Body.m_Pos;
 
-		if (pendingInputs->size() > 1)
+		if (pendingInputs.size() > 1)
 		{
-			unsigned int previousInputTick = pendingInputs->at(pendingInputs->size() - 1).Tick;
+			unsigned int previousInputTick = pendingInputs.at(pendingInputs.size() - 1).Tick;
 			vec2 prevPos = pj.m_History.at(previousInputTick).GetPos();
-			pos = utils::Lerp(prevPos, pos, *ServiceLocator::GetInterpolationAlpha());
+			pos = utils::Lerp(prevPos, pos, ServiceLocator::GetInterpolationAlpha());
 		}
 
 		return pos;
