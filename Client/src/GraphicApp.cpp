@@ -118,7 +118,8 @@ namespace rmkl {
 
 		ServiceLocator::ProvideInput(&m_PendingInputs);
 		ServiceLocator::ProvideInterpolationAlpha(&m_InterpolationAlpha);
-		ServiceLocator::ProvidePhysicsTick(&(m_Stage->PhysicsTick));
+		ServiceLocator::ProvidePhysicsTick(&m_Stage->PhysicsTick);
+		ServiceLocator::ProvideRtt(&m_EnetHost->peers->roundTripTime);
 	}
 
 	GraphicApp::~GraphicApp()
@@ -182,7 +183,7 @@ namespace rmkl {
 
 	void GraphicApp::SendInput(Input input)
 	{
-		NetMessage::Type type = NetMessage::Type::input;
+		NetMessage::Type type = NetMessage::Type::Input;
 		int count = static_cast<int>(m_PendingInputs.size());
 
 		size_t size = sizeof(NetMessage::Type) + sizeof(int) + (sizeof(Input) * count);
@@ -217,7 +218,7 @@ namespace rmkl {
 		NetMessage::Type type = *(NetMessage::Type*)(data);
 		switch (type)
 		{
-		case NetMessage::Type::stateUpdate:
+		case NetMessage::Type::StateUpdate:
 		{
 			size_t stride = sizeof(NetMessage::Type);
 			int count = NetMessage::unpack<int>(data, stride);
@@ -242,21 +243,21 @@ namespace rmkl {
 			}
 			break;
 		}
-		case NetMessage::Type::spawnPj:
+		case NetMessage::Type::SpawnPj:
 		{
 			PjSpawnState spawn = NetMessage::unpackOne<PjSpawnState>(data);
 			m_Pjs.insert_or_assign(spawn.Id, Pj(spawn.Id, spawn.posX, spawn.posY));
 			std::cout << "spawn pj " << spawn.Id << std::endl;
 			break;
 		}
-		case NetMessage::Type::removePj:
+		case NetMessage::Type::RemovePj:
 		{
 			int id = NetMessage::unpackOne<int>(data);
 			m_Pjs.erase(id);
 			std::cout << "remove pj " << id << std::endl;
 			break;
 		}
-		case NetMessage::Type::setControlledPjId:
+		case NetMessage::Type::SetControlledPjId:
 		{
 			int id = NetMessage::unpackOne<int>(data);
 
@@ -270,14 +271,14 @@ namespace rmkl {
 			std::cout << "set controlled pj " << id << std::endl;
 			break;
 		}
-		case NetMessage::Type::setSpectatingPjId:
+		case NetMessage::Type::SetSpectatingPjId:
 		{
 			int id = NetMessage::unpackOne<int>(data);
 			m_SpectatingPj = id;
 			std::cout << "set spectating pj " << id << std::endl;
 			break;
 		}
-		case NetMessage::Type::syncTickNumber:
+		case NetMessage::Type::SyncTickNumber:
 		{
 			int tick = NetMessage::unpackOne<int>(data);
 			float tickrate = 1.0f / FIXED_UPDATE_FPS;
@@ -288,11 +289,11 @@ namespace rmkl {
 			std::cout << "sync ticknumber " << std::endl;
 			break;
 		}
-		case NetMessage::Type::wall:
+		case NetMessage::Type::Wall:
 		{
 			break;
 		}
-		case NetMessage::Type::forceEmitter:
+		case NetMessage::Type::ForceEmitter:
 		{
 			break;
 		}
