@@ -22,6 +22,9 @@ namespace rmkl {
 		//currentSprite = self.sprite.currentSprite,
 		//currentAction = self.sprite.currentAction
 
+		bool operator < (const PjState &other) const { return Tick < other.Tick; }
+		friend bool operator == (const PjState &a, const PjState &b) { return a.Tick == b.Tick; }
+
 		inline glm::vec2 GetPos() const { return glm::vec2(posX, posY); }
 		inline glm::vec2 GetInputV() const { return glm::vec2(inputVX, inputVY); }
 		inline glm::vec2 GetNonInputV() const { return glm::vec2(nonInputVX, nonInputVY); }

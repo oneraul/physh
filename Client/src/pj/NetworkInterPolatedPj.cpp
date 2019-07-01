@@ -9,6 +9,7 @@ namespace rmkl {
 	void NetworkInterpolatedPj::UpdateState(Pj& pj, PjState& state, Stage& stage)
 	{
 		_history.emplace_back(state);
+		std::sort(_history.begin(), _history.end());
 	}
 
 	glm::vec2 NetworkInterpolatedPj::GetDrawPos(Pj& pj)
@@ -16,19 +17,19 @@ namespace rmkl {
 		int FIXED_UPDATE_FPS = 30;
 		float tickrate = 1.0f / FIXED_UPDATE_FPS;
 		float SERVER_TICKRATE = 1.0f / 20;
-		float interpolationDelay = SERVER_TICKRATE * 2 + 0.15f; // this 0.15 accounts for rtt in clock sync.should be changed
-		//auto& snapshots = pj.m_History;
+		float rtt = static_cast<int>(ServiceLocator::GetRtt()) / 100.0f;
+		float interpolationDelay = SERVER_TICKRATE * 2 + rtt/2;
 
 		// calculate the rendering time
-		float currentTime = ((*ServiceLocator::GetPhysicsTick()) + (*ServiceLocator::GetInterpolationAlpha())) * tickrate;
+		float currentTime = (ServiceLocator::GetPhysicsTick() + ServiceLocator::GetInterpolationAlpha()) * tickrate;
 		float renderTime = currentTime - interpolationDelay;
 
 		// remove old snapshots
 		while (_history.size() > 1)
 		{
 			if (_history.at(0).Tick * tickrate < renderTime
-				&& _history.at(1).Tick * tickrate <= renderTime)
-					_history.erase(_history.begin());
+			&&  _history.at(1).Tick * tickrate <= renderTime)
+				_history.erase(_history.begin());
 			else break;
 		}
 
