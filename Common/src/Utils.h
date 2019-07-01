@@ -13,7 +13,7 @@ namespace utils {
 	inline T Lerp(T a, T b, float alpha) { return b * alpha + a * (1.0f - alpha); }
 
 	template <class T>
-	inline T Sign(T value) { return (value > 0) ? 1 : ((value < 0) ? -1 : 0); }
+	inline int Sign(T value) { return (value > 0) ? 1 : ((value < 0) ? -1 : 0); }
 
 	template<typename T>
 	void RemoveOldSnapshots(std::vector<T>& buffer, int tick)

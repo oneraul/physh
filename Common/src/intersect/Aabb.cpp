@@ -72,8 +72,8 @@ namespace rmkl {
 
 		float scaleX = 1.0f / delta.x;
 		float scaleY = 1.0f / delta.y;
-		float signX = utils::Sign(scaleX);
-		float signY = utils::Sign(scaleY);
+		int signX = utils::Sign(scaleX);
+		int signY = utils::Sign(scaleY);
 		float nearTimeX = (this->Pos.x - signX * (this->Half.x + paddingX) - pos.x) * scaleX;
 		float nearTimeY = (this->Pos.y - signY * (this->Half.y + paddingY) - pos.y) * scaleY;
 		float farTimeX = (this->Pos.x + signX * (this->Half.x + paddingX) - pos.x) * scaleX;
@@ -98,8 +98,8 @@ namespace rmkl {
 			hit.Normal.x = 0;
 			hit.Normal.y = -signY;
 		}
-		hit.Delta.x = (1.0 - hit.Time) * -delta.x;
-		hit.Delta.y = (1.0 - hit.Time) * -delta.y;
+		hit.Delta.x = (1.0f - hit.Time) * -delta.x;
+		hit.Delta.y = (1.0f - hit.Time) * -delta.y;
 		hit.Pos.x = pos.x + delta.x * hit.Time;
 		hit.Pos.y = pos.y + delta.y * hit.Time;
 
@@ -124,7 +124,7 @@ namespace rmkl {
 		hit.Collider = &box;
 		if (px < py) 
 		{
-			float sx = utils::Sign(dx);
+			int sx = utils::Sign(dx);
 			hit.Delta.x = px * sx;
 			hit.Normal.x = sx;
 			hit.Pos.x = this->Pos.x + this->Half.x * sx;
@@ -132,7 +132,7 @@ namespace rmkl {
 		}
 		else
 		{
-			float sy = utils::Sign(dy);
+			int sy = utils::Sign(dy);
 			hit.Delta.y = py * sy;
 			hit.Normal.y = sy;
 			hit.Pos.x = box.Pos.x;
