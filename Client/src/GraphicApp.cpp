@@ -15,8 +15,14 @@
 namespace rmkl {
 
 	GraphicApp::GraphicApp()
-		: m_WindowWidth(800), m_WindowHeight(600), m_Vsync(0), m_Stage(std::make_unique<Stage>()),
-		m_ControlledPj(-1), m_SpectatingPj(-1), m_PacketLoss(0.2f), m_Cam()
+		: m_WindowWidth(800)
+		, m_WindowHeight(600)
+		, m_Vsync(0)
+		, m_Stage(std::make_unique<Stage>())
+		, m_ControlledPj(-1)
+		, m_SpectatingPj(-1)
+		, m_PacketLoss(0.2f)
+		, m_Cam()
 	{
 		// Init Enet
 
@@ -118,7 +124,7 @@ namespace rmkl {
 
 		ServiceLocator::ProvideInput(&m_PendingInputs);
 		ServiceLocator::ProvideInterpolationAlpha(&m_InterpolationAlpha);
-		ServiceLocator::ProvidePhysicsTick(&m_Stage->PhysicsTick);
+		//ServiceLocator::ProvidePhysicsTick(&m_Stage->PhysicsTick);	// TODO -------------------------------
 		ServiceLocator::ProvideRtt(&m_EnetHost->peers->roundTripTime);
 	}
 
@@ -139,9 +145,7 @@ namespace rmkl {
 
 	void GraphicApp::FixedUpdate()
 	{
-		m_Stage->PhysicsTick++;
-
-		ForceEmitter::UpdateEmitters(*m_Stage);
+		m_Stage->FixedUpdate();
 
 		if (m_ControlledPj == -1) return;
 		Pj& pj = m_Pjs.at(m_ControlledPj);
@@ -159,11 +163,12 @@ namespace rmkl {
 		if (rawInput.x != 0 || rawInput.y != 0)
 			rawInput = glm::normalize(rawInput);
 
-		Input input;
-		input.X = rawInput.x;
-		input.Y = rawInput.y;
-		input.Space = glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS;
-		input.Tick = m_Stage->PhysicsTick;
+		Input input {
+			rawInput.x,
+			rawInput.y,
+			glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS,
+			m_Stage->GetTick()
+		};
 
 		SendInput(input);
 
@@ -171,14 +176,11 @@ namespace rmkl {
 		pj.FixedUpdate(input, *m_Stage);
 
 		//Save this input for later reconciliation.
-		PjState result = pj.SerializeState(input.Tick); // input.result = 
-
 		m_PendingInputs.emplace_back(input);
+		pj.History.emplace(pj.SerializeState(input.Tick));
 
-		pj.m_History.try_emplace(input.Tick, result);
-			
-		if (m_Stage->PhysicsTick > 500)
-			pj.m_History.erase(m_Stage->PhysicsTick - 500);
+		if (m_Stage->GetTick() > 500)
+			pj.History.erase(pj.History.begin(), pj.History.lower_bound(m_Stage->GetTick() - 500));
 	}
 
 	void GraphicApp::SendInput(Input input)
@@ -200,7 +202,7 @@ namespace rmkl {
 			NetMessage::pack<int>(packet, stride, input.Tick);
 		}
 
-		ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_RELIABLE);
+		ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
 		enet_host_broadcast(m_EnetHost, 0, p);
 		free(packet);
 	}
@@ -237,7 +239,12 @@ namespace rmkl {
 
 				Pj& pj = m_Pjs.at(state.Id);
 				if (pj.GetMode() == PjModes::PREDICTED)
-					utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
+				{
+					//utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
+					//m_PendingInputs.erase(std::remove_if(m_PendingInputs.begin(), m_PendingInputs.end(),
+					//	[=](const Input& input) { return input.Tick <= state.Tick; }),
+					//	m_PendingInputs.end());
+				}
 
 				pj.UpdateState(state, *m_Stage);
 			}
@@ -282,10 +289,10 @@ namespace rmkl {
 		{
 			int tick = NetMessage::unpackOne<int>(data);
 			float tickrate = 1.0f / FIXED_UPDATE_FPS;
-			float rtt = 0.15f;
+			float rtt = 0.15f; // TODO ------------------------------------------------------------
 			float serverInputBuffer = tickrate;
 			float forward = rtt + serverInputBuffer;
-			m_Stage->PhysicsTick = tick + (int)(forward / tickrate) + 1;
+			m_Stage->SetTick(tick + (int)(forward / tickrate) + 1);
 			std::cout << "sync ticknumber " << std::endl;
 			break;
 		}
@@ -301,11 +308,9 @@ namespace rmkl {
 	}
 
 
-	void GraphicApp::Update(double dt) 
-	{
-	}
+	void GraphicApp::Update(float dt) {}
 
-	void GraphicApp::Render(double interpolationAlpha)
+	void GraphicApp::Render(float interpolationAlpha)
 	{
 		glClearColor(0.1f, 0.2f, 0.3f, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -329,10 +334,10 @@ namespace rmkl {
 			m_Batch->DrawAabb(wall, wallColour);
 
 		for (ForceEmitter* emitter : m_Stage->ForceEmitters)
-			m_Batch->DrawAabb(emitter->GetDebugAabb(m_Stage->PhysicsTick), emitter->GetDebugColour(m_Stage->PhysicsTick));
+			m_Batch->DrawAabb(emitter->GetDebugAabb(m_Stage->GetTick()), emitter->GetDebugColour(m_Stage->GetTick()));
 
 		for (auto&[id, pj] : m_Pjs)
-			pj.Draw(*m_Batch.get(), (float)interpolationAlpha);
+			pj.Draw(*m_Batch.get());
 
 		m_Batch->End();
 
@@ -355,11 +360,11 @@ namespace rmkl {
 
 	void GraphicApp::RenderImGui() 
 	{
-		static int targetFps = GetTargetFps();
+		//static int targetFps = GetTargetFps();
 
 		ImGui::Begin("settings");
 
-		const char* items[] = { "vsync", "custom", "off" };
+		/*const char* items[] = { "vsync", "custom", "off" };
 		static const char* item_current = items[1];
 		if (ImGui::BeginCombo("Limit FPS", item_current, 0))
 		{
@@ -381,13 +386,13 @@ namespace rmkl {
 		if (GetLimitFps())
 			ImGui::SliderInt("Frame rate cap", &targetFps, 30, 300);
 		if (targetFps != GetTargetFps())
-			SetTargetFps(targetFps);
+			SetTargetFps(targetFps);*/
 
 		ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
 		ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
 		ImGui::Separator();
 
-		ImGui::Text("Physics tick %i", m_Stage->PhysicsTick);
+		ImGui::Text("Physics tick %i", m_Stage->GetTick());
 		ImGui::Text("%ims RTT", m_EnetHost->peers->roundTripTime);
 		ImGui::Text("%i pending inputs", m_PendingInputs.size());
 		ImGui::SliderFloat("Packet loss", &m_PacketLoss, 0.0f, 1.0f);

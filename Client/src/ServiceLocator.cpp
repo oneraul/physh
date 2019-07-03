@@ -13,7 +13,7 @@ namespace rmkl {
 	float ServiceLocator::GetInterpolationAlpha() { return *_interpolationAlpha; }
 	void ServiceLocator::ProvideInterpolationAlpha(float* alpha) { _interpolationAlpha = alpha; }
 
-	int ServiceLocator::GetPhysicsTick() { return *_physicsTick; }
+	int ServiceLocator::GetPhysicsTick() { return 0; }//*_physicsTick; } // TODO
 	void ServiceLocator::ProvidePhysicsTick(int* tick) { _physicsTick = tick; }
 
 	enet_uint32 ServiceLocator::GetRtt() { return *_rtt; }

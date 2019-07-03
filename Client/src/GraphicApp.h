@@ -21,14 +21,14 @@ namespace rmkl {
 		void SetVsync(bool value);
 
 	protected:
+		virtual void FixedUpdate() override;
+		virtual void Update(float dt) override;
+		virtual void Render(float interpolationAlpha) override;
 		virtual void OnNetworkConnected(const ENetEvent& e) override;
 		virtual void OnNetworkDisconnected(const ENetEvent& e) override;
 		virtual void OnNetworkReceived(const ENetEvent& e) override;
 
 	private:
-		virtual void FixedUpdate() override;
-		virtual void Update(double dt) override;
-		virtual void Render(double interpolationAlpha) override;
 		void RenderImGui();
 		void SendInput(Input input);
 

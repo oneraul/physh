@@ -33,13 +33,13 @@ namespace rmkl {
 		e.peer->data = malloc(sizeof(int));
 		memcpy(e.peer->data, &e.peer->connectID, sizeof(unsigned int));
 
-		NetMessage::SendTo(NetMessage::Type::SyncTickNumber, m_Stage->PhysicsTick, client.EnetPeer);
+		NetMessage::SendTo(NetMessage::Type::SyncTickNumber, m_Stage->GetTick(), client.EnetPeer);
 
 		// update the new client with the info about the other players
 		for (auto&[id, pj] : m_Pjs)
 		{
 			NetMessage::SendTo(NetMessage::Type::SpawnPj, 
-				PjSpawnState { id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y, pj.Spritesheet, pj.Palette },
+				PjSpawnState { id, pj.m_Body.GetPos().x, pj.m_Body.GetPos().y, pj.Spritesheet, pj.Palette },
 				client.EnetPeer);
 		}
 
@@ -48,7 +48,7 @@ namespace rmkl {
 		ServerPj pj(x, y);
 		m_Pjs.insert({ pj.m_Id, pj });
 		NetMessage::SendToAll(NetMessage::Type::SpawnPj,
-			PjSpawnState{ pj.m_Id, pj.m_Body.m_Pos.x, pj.m_Body.m_Pos.y, pj.Spritesheet, pj.Palette },
+			PjSpawnState{ pj.m_Id, pj.m_Body.GetPos().x, pj.m_Body.GetPos().y, pj.Spritesheet, pj.Palette },
 			m_EnetHost);
 
 		SetPjOwnership(pj.m_Id, client.Id);
@@ -105,7 +105,7 @@ namespace rmkl {
 			std::vector<PjState> _states;
 			_states.reserve(m_Pjs.size());
 			for (auto&[pjId, pj] : m_Pjs)
-				_states.emplace_back(pj.SerializeState(m_Stage->PhysicsTick));
+				_states.emplace_back(pj.SerializeState(m_Stage->GetTick()));
 			int statesCount = static_cast<int>(_states.size());
 
 			NetMessage::Type messageType = NetMessage::Type::StateUpdate;
@@ -139,11 +139,9 @@ namespace rmkl {
 
 	void ServerApp::FixedUpdate()
 	{
-		m_Stage->PhysicsTick++;
-		
-		ForceEmitter::UpdateEmitters(*m_Stage);
+		m_Stage->FixedUpdate();
 
-		const int tick = m_Stage->PhysicsTick;
+		const int tick = m_Stage->GetTick();
 		for (auto&[id, pj] : m_Pjs)
 		{
 			if (pj.m_ControlledByClient)
@@ -155,14 +153,14 @@ namespace rmkl {
 				if (input != client.InputBuffer.end())
 				{
 					pj.FixedUpdate(*input, *m_Stage);
-					pj.m_History.try_emplace(tick, pj.SerializeState(tick));
+					pj.History.emplace(pj.SerializeState(tick));
 				}
 			}
 
 			const int HistoryBufferLength = 60; // 2s, in ticks
-			int historyStartsAtTick = m_Stage->PhysicsTick - HistoryBufferLength;
+			int historyStartsAtTick = m_Stage->GetTick() - HistoryBufferLength;
 			if (historyStartsAtTick > 0)
-				utils::RemoveOldSnapshots(pj.m_History, historyStartsAtTick);
+				pj.History.erase(pj.History.begin(), pj.History.lower_bound(historyStartsAtTick));
 		}
 	}
 
