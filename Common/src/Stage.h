@@ -2,7 +2,7 @@
 
 #include "intersect/Aabb.h"
 #include "StageSnapshot.h"
-#include <map>
+#include <set>
 
 namespace rmkl {
 
@@ -10,10 +10,19 @@ namespace rmkl {
 	{
 	public:
 		Stage();
+		void FixedUpdate();
+		inline int GetTick() const { return m_PhysicsTick; }
+		inline void SetTick(int tick) { m_PhysicsTick = tick; }
 
-		int PhysicsTick;
+	public:
 		std::vector<Aabb> Walls;
 		std::vector<ForceEmitter*> ForceEmitters;
-		std::map<int, StageSnapshot> History;
+		std::set<StageSnapshot, StageSnapshotCompareTick> History;
+
+	private:
+		void UpdateEmitters();
+
+	private:
+		int m_PhysicsTick;
 	};
 }
