@@ -11,12 +11,12 @@ namespace rmkl {
 		m_Mode = std::make_unique<NetworkInterpolatedPj>();
 	}
 
-	PjModes Pj::GetMode()
+	PjModes Pj::GetMode() const
 	{
 		return m_Mode->GetType();
 	}
 
-	void Pj::UpdateState(PjState& state, Stage& stage)
+	void Pj::UpdateState(const PjState& state, const Stage& stage)
 	{
 		m_Mode->UpdateState(*this, state, stage);
 	}
@@ -37,7 +37,7 @@ namespace rmkl {
 		}
 	}
 
-	void Pj::Draw(Batch& batch, float interpolationAlpha)
+	void Pj::Draw(Batch& batch)
 	{
 		glm::vec2 center = m_Mode->GetDrawPos(*this);
 		glm::vec2 half = m_Body.m_Collider.Half;

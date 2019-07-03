@@ -4,9 +4,9 @@
 
 namespace rmkl {
 
-	PjModes NetworkInterpolatedPj::GetType() { return PjModes::INTERPOLATED; }
+	PjModes NetworkInterpolatedPj::GetType() const { return PjModes::INTERPOLATED; }
 
-	void NetworkInterpolatedPj::UpdateState(Pj& pj, PjState& state, Stage& stage)
+	void NetworkInterpolatedPj::UpdateState(Pj& pj, const PjState& state, const Stage& stage)
 	{
 		_history.emplace_back(state);
 		std::sort(_history.begin(), _history.end());
@@ -35,7 +35,7 @@ namespace rmkl {
 
 		if (_history.size() == 0)
 		{
-			return pj.m_Body.m_Pos;
+			return pj.m_Body.GetPos();
 		}
 		else if (_history.size() == 1)
 		{
@@ -44,7 +44,7 @@ namespace rmkl {
 			pj.m_Body.m_InputV = snapshot.GetInputV();
 			pj.m_Body.m_NonInputV = snapshot.GetNonInputV();
 
-			return pj.m_Body.m_Pos;
+			return pj.m_Body.GetPos();
 		}
 		else
 		{
@@ -56,7 +56,7 @@ namespace rmkl {
 			pj.m_Body.m_InputV = utils::Lerp(before.GetInputV(), after.GetInputV(), alpha);
 			pj.m_Body.m_NonInputV = utils::Lerp(before.GetNonInputV(), after.GetNonInputV(), alpha);
 
-			return pj.m_Body.m_Pos;
+			return pj.m_Body.GetPos();
 		}
 	}
 }
