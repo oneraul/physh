@@ -113,7 +113,6 @@
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\physics\RectForceEmitterPulsating.cpp" />
     <ClCompile Include="src\Stage.cpp" />
-    <ClCompile Include="src\physics\ForceEmitter.cpp" />
     <ClCompile Include="src\physics\RectForceEmitterContinuous.cpp" />
     <ClCompile Include="src\PjCommon.cpp" />
     <ClCompile Include="src\intersect\Aabb.cpp" />

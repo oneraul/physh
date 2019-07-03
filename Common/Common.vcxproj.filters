@@ -44,7 +44,6 @@
       <Filter>physics</Filter>
     </ClCompile>
     <ClCompile Include="src\physics\RectForceEmitterContinuous.cpp" />
-    <ClCompile Include="src\physics\ForceEmitter.cpp" />
     <ClCompile Include="src\Stage.cpp" />
     <ClCompile Include="src\physics\RectForceEmitterPulsating.cpp" />
   </ItemGroup>

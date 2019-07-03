@@ -94,7 +94,6 @@
     <ClInclude Include="src\Batch.h" />
     <ClInclude Include="src\GraphicApp.h" />
     <ClInclude Include="src\pj\LocallyPredictedPj.h" />
-    <ClInclude Include="src\RingBuffer.h" />
     <ClInclude Include="src\ServiceLocator.h" />
     <ClInclude Include="src\pj\NetworkInterPolatedPj.h" />
     <ClInclude Include="src\Shader.h" />
