@@ -7,7 +7,11 @@ namespace rmkl {
 	const int PjCommon::s_CdDuration = utils::secondsToTicks(2.0f);
 
 	PjCommon::PjCommon(int id, Rigidbody body)
-		: m_Id(id), m_Body(body), m_Cd(0), Spritesheet(0), Palette(0)
+		: m_Id(id)
+		, m_Body(body)
+		, m_Cd(0)
+		, Spritesheet(0)
+		, Palette(0)
 	{
 	}
 
@@ -17,27 +21,30 @@ namespace rmkl {
 
 	PjState PjCommon::SerializeState(int tick) const
 	{
-		return PjState(tick, m_Id, m_Body.m_Pos, m_Body.m_InputV, m_Body.m_NonInputV);
+		return PjState(tick, m_Id, m_Body.GetPos(), m_Body.m_InputV, m_Body.m_NonInputV);
 	}
 	
-	void PjCommon::FixedUpdate(Input& input, Stage& stage)
+	void PjCommon::FixedUpdate(const Input& input, const Stage& stage)
 	{
-		UpdateCd();
-		UseAbility(input);
-		ApplyStageSnapshot(input.Tick, stage);
+		//UpdateCd();
+		//UseAbility(input);
+		//ApplyStageSnapshot(input.Tick, stage);
 		m_Body.FixedUpdate(input, stage);
 	}
 	
-	void PjCommon::ApplyStageSnapshot(int tick, Stage& stage)
+	void PjCommon::ApplyStageSnapshot(int tick, const Stage& stage)
 	{
-		StageSnapshot snapshot = stage.History.at(tick);
-		for (ForceEmitter* emitter : snapshot.Emitters)
+		auto snapshot = stage.History.find(tick);
+		if (snapshot != stage.History.end())
 		{
-			emitter->ApplyForce(m_Body);
+			for (ForceEmitter* emitter : snapshot->Emitters)
+			{
+				emitter->ApplyForce(m_Body);
+			}
 		}
 	}
 
-	void PjCommon::UseAbility(Input& input)
+	void PjCommon::UseAbility(const Input& input)
 	{
 		if (input.Space == 1 && m_Cd == 0)
 		{

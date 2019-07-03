@@ -4,6 +4,15 @@
 
 namespace rmkl {
 
+	struct PjSpawnState
+	{
+		int Id;
+		float posX, posY;
+		int Spritesheet;
+		int Palette;
+	};
+
+
 	struct PjState
 	{
 		PjState(int tick, int id, glm::vec2 pos, glm::vec2 inputV, glm::vec2 nonInputV)
@@ -23,18 +32,21 @@ namespace rmkl {
 		//currentAction = self.sprite.currentAction
 
 		bool operator < (const PjState &other) const { return Tick < other.Tick; }
+		bool operator < (int tick) const { return Tick < tick; }
 		friend bool operator == (const PjState &a, const PjState &b) { return a.Tick == b.Tick; }
+		friend bool operator == (const PjState &state, int tick) { return state.Tick == tick; }
+		friend bool operator == (int tick, const PjState &state) { return tick == state.Tick; }
 
 		inline glm::vec2 GetPos() const { return glm::vec2(posX, posY); }
 		inline glm::vec2 GetInputV() const { return glm::vec2(inputVX, inputVY); }
 		inline glm::vec2 GetNonInputV() const { return glm::vec2(nonInputVX, nonInputVY); }
 	};
 
-	struct PjSpawnState
+	struct PjStateCompareTick
 	{
-		int Id;
-		float posX, posY;
-		int Spritesheet;
-		int Palette;
+		using is_transparent = int;
+		bool operator()(PjState const& a, PjState const& b) const { return a.Tick < b.Tick; }
+		bool operator()(int tick, PjState const& state) const { return tick < state.Tick; }
+		bool operator()(PjState const& state, int tick) const { return state.Tick < tick; }
 	};
 }

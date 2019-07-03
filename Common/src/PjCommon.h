@@ -2,7 +2,7 @@
 
 #include "PjState.h"
 #include "physics/ForceEmitter.h"
-#include <map>
+#include <set>
 
 namespace rmkl {
 
@@ -13,9 +13,9 @@ namespace rmkl {
 		virtual ~PjCommon();
 
 		PjState SerializeState(int tick) const;
-		void FixedUpdate(Input& input, Stage& stage);
-		void ApplyStageSnapshot(int tick, Stage& stage);
-		void UseAbility(Input& input);
+		void FixedUpdate(const Input& input, const Stage& stage);
+		void ApplyStageSnapshot(int tick, const Stage& stage);
+		void UseAbility(const Input& input);
 		void UpdateCd();
 
 	public:
@@ -23,7 +23,7 @@ namespace rmkl {
 		Rigidbody m_Body;
 		int Spritesheet;
 		int Palette;
-		std::map<int, PjState> m_History;
+		std::set<PjState, PjStateCompareTick> History;
 
 	private:
 		int m_Cd;
