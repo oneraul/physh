@@ -24,6 +24,11 @@ namespace rmkl {
 
 	ServerApp::~ServerApp() {}
 
+	void ServerApp::PollEvents()
+	{
+		ProcessNetworkEvents();
+	}
+
 	void ServerApp::OnNetworkConnected(const ENetEvent& e) 
 	{
 		std::cout << "Someone connected" << std::endl;

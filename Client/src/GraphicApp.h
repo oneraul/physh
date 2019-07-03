@@ -22,6 +22,7 @@ namespace rmkl {
 		void SetVsync(bool value);
 
 	protected:
+		virtual void PollEvents() override;
 		virtual void FixedUpdate() override;
 		virtual void Update(float dt) override;
 		virtual void Render(float interpolationAlpha) override;

@@ -10,7 +10,7 @@ namespace rmkl {
 	std::vector<Input> ServiceLocator::GetInput() { return *_input; }
 	void ServiceLocator::ProvideInput(std::vector<Input>* input) { _input = input; }
 
-	float ServiceLocator::GetInterpolationAlpha() { return *_interpolationAlpha; }
+	float ServiceLocator::GetInterpolationAlpha() { return 0; }// *_interpolationAlpha; } // TODO
 	void ServiceLocator::ProvideInterpolationAlpha(float* alpha) { _interpolationAlpha = alpha; }
 
 	int ServiceLocator::GetPhysicsTick() { return 0; }//*_physicsTick; } // TODO

@@ -54,6 +54,11 @@ namespace rmkl {
 
 		// Init GLFW window
 
+		ASSERT(glfwInit(), "Failed to initialize GLFW");
+		glfwSetErrorCallback([](int error, const char* description) {
+			std::cout << "GLFW Error (" << error << "): " << description << std::endl;
+		});
+
 		m_Window = glfwCreateWindow(m_WindowWidth, m_WindowHeight, "rmkl", nullptr, nullptr);
 		ASSERT(m_Window, "Failed to create window.");
 
@@ -123,8 +128,8 @@ namespace rmkl {
 		m_Cam[1] = 0;
 
 		ServiceLocator::ProvideInput(&m_PendingInputs);
-		ServiceLocator::ProvideInterpolationAlpha(&m_InterpolationAlpha);
-		//ServiceLocator::ProvidePhysicsTick(&m_Stage->PhysicsTick);	// TODO -------------------------------
+		//ServiceLocator::ProvideInterpolationAlpha(&m_InterpolationAlpha);
+		//ServiceLocator::ProvidePhysicsTick(&m_Stage->PhysicsTick);
 		ServiceLocator::ProvideRtt(&m_EnetHost->peers->roundTripTime);
 	}
 
@@ -135,12 +140,20 @@ namespace rmkl {
 		ImGui::DestroyContext();
 
 		glfwDestroyWindow(m_Window);
+
+		glfwTerminate();
 	}
 
 	void GraphicApp::SetVsync(bool value)
 	{
 		m_Vsync = value;
 		glfwSwapInterval(m_Vsync ? 1 : 0);
+	}
+
+	void GraphicApp::PollEvents()
+	{
+		glfwPollEvents();
+		ProcessNetworkEvents();
 	}
 
 	void GraphicApp::FixedUpdate()
