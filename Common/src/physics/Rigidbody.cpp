@@ -7,9 +7,13 @@ namespace rmkl {
 	using glm::vec2;
 
 	Rigidbody::Rigidbody(float x, float y, float mass = 1.0f)
-		: m_Mass(mass), m_MaxInputV(2.5f), m_FrictionU(1.0f), 
-		m_Pos{x, y}, m_InputV{0, 0},  m_NonInputV{0, 0},
-		m_Collider({x, y}, {0.2f, 0.2f})
+		: m_Mass(mass)
+		, m_MaxInputV(2.5f)
+		, m_FrictionU(1.0f)
+		, m_Pos{x, y}
+		, m_InputV{0, 0}
+		, m_NonInputV{0, 0}
+		, m_Collider({x, y}, {0.2f, 0.2f})
 	{
 		float inputTimeToReachMaxV = 0.1f;
 		float inputTimeToDecelerate = 0.2f;
@@ -27,7 +31,7 @@ namespace rmkl {
 		m_Collider.Pos = pos;
 	}
 
-	void Rigidbody::FixedUpdate(Input& rawInput, Stage& stage)
+	void Rigidbody::FixedUpdate(const Input& rawInput, const Stage& stage)
 	{
 		float dt = 1.0f / FIXED_UPDATE_FPS;
 
