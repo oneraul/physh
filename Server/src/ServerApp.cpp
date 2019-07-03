@@ -6,7 +6,8 @@
 namespace rmkl {
 
 	ServerApp::ServerApp()
-		: m_Stage(std::make_unique<Stage>()), m_HistoryBufferLength(SERVER_TICKRATE /* 1s */),
+		: m_Stage(std::make_unique<Stage>())
+		, m_HistoryBufferLength(SERVER_TICKRATE /* 1s */),
 		m_UpdateAccumulator(0)
 	{
 		ASSERT(enet_initialize() == 0, "An error occurred while initializing ENet.");
@@ -93,7 +94,7 @@ namespace rmkl {
 		}
 	}
 
-	void ServerApp::Update(double dt) 
+	void ServerApp::Update(float dt) 
 	{
 		m_UpdateAccumulator += dt;
 		if (m_UpdateAccumulator >= (1.0f / SERVER_TICKRATE))
@@ -128,7 +129,7 @@ namespace rmkl {
 					NetMessage::pack(packet, stride, state.nonInputVY);
 				}
 
-				ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_RELIABLE);
+				ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
 				enet_peer_send(client.EnetPeer, 0, p);
 				free(packet);
 			}
@@ -165,7 +166,7 @@ namespace rmkl {
 		}
 	}
 
-	void ServerApp::Render(double interpolationAlpha) {}
+	void ServerApp::Render(float interpolationAlpha) {}
 
 	void ServerApp::SetPjOwnership(int pjId, int clientId)
 	{

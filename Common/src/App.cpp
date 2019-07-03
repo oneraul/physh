@@ -4,10 +4,10 @@
 
 namespace rmkl {
 
-	float App::m_InterpolationAlpha = 0.0f;
-
 	App::App()
-		: m_Running(true), m_LimitFps(true), m_PreviousTime(glfwGetTime()), m_Lag(0), m_TargetFps(100), m_FixedUpdateFps(FIXED_UPDATE_FPS)
+		: m_Running(true) 
+		, m_FixedFrameDuration(std::chrono::milliseconds(33))
+		, m_InterpolationAlpha(0)
 	{
 		ASSERT(glfwInit(), "Failed to initialize GLFW");
 		glfwSetErrorCallback([](int error, const char* description) {
@@ -24,30 +24,30 @@ namespace rmkl {
 
 	void App::Run()
 	{
+		std::chrono::nanoseconds lag(0);
+		std::chrono::nanoseconds m_fixedFrameDuration(std::chrono::milliseconds(33));
+
+		auto previousTime = std::chrono::high_resolution_clock::now();
+
 		while (m_Running)
 		{
-			double currentTime = glfwGetTime();
-			double elapsedTime = currentTime - m_PreviousTime;
-			if (m_LimitFps && elapsedTime < GetTargetFrameDuration())
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(0));
-				continue;
-			}
-			m_PreviousTime = currentTime;
-			m_Lag += elapsedTime;
+			auto currentTime = std::chrono::high_resolution_clock::now();
+			auto elapsedTime = currentTime - previousTime;
+			previousTime = currentTime;
+			lag += elapsedTime;
 
 			glfwPollEvents();
 			ProcessNetworkEvents();
 
-			while (m_Lag >= GetFixedFrameDuration())
+			while (lag >= m_FixedFrameDuration)
 			{
-				m_Lag -= GetFixedFrameDuration();
+				lag -= m_FixedFrameDuration;
 				FixedUpdate();
 			}
 
-			Update(elapsedTime);
+			Update((float)elapsedTime.count());
 
-			double m_InterpolationAlpha = m_Lag / GetFixedFrameDuration();
+			m_InterpolationAlpha = (float)lag.count() / m_FixedFrameDuration.count();
 			
 			Render(m_InterpolationAlpha);
 		}

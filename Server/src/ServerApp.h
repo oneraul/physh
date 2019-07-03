@@ -16,11 +16,10 @@ namespace rmkl {
 		ServerApp();
 		~ServerApp();
 
-		void FixedUpdate();
-		void Update(double dt);
-		void Render(double interpolationAlpha);
-
 	protected:
+		virtual void FixedUpdate() override;
+		virtual void Update(float dt) override;
+		virtual void Render(float interpolationAlpha) override;
 		virtual void OnNetworkConnected(const ENetEvent& e) override;
 		virtual void OnNetworkDisconnected(const ENetEvent& e) override;
 		virtual void OnNetworkReceived(const ENetEvent& e) override;
@@ -34,7 +33,7 @@ namespace rmkl {
 		std::unordered_map<unsigned int, Client> Clients;
 		std::unordered_map<int, ServerPj> m_Pjs;
 		int m_HistoryBufferLength;
-		double m_UpdateAccumulator; // necessary to update at a lower framerate than the physics
+		float m_UpdateAccumulator; // necessary to update at a lower framerate than the physics
 	};
 
 }
