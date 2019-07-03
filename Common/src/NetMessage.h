@@ -53,7 +53,7 @@ namespace rmkl {
 			pack(packet, stride, type);
 			pack(packet, stride, payload);
 
-			ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_RELIABLE);
+			ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
 			enet_peer_send(peer, 0, p);
 
 			free(packet);
@@ -68,7 +68,7 @@ namespace rmkl {
 			pack(packet, stride, type);
 			pack(packet, stride, payload);
 
-			ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_RELIABLE);
+			ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
 			enet_host_broadcast(host, 0, p);
 
 			free(packet);
