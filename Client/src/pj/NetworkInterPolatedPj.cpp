@@ -35,16 +35,16 @@ namespace rmkl {
 
 		if (_history.size() == 0)
 		{
-			return pj.m_Body.GetPos();
+			return pj.GetBody().GetPos();
 		}
 		else if (_history.size() == 1)
 		{
 			PjState snapshot = _history.at(0);
-			pj.m_Body.SetPos(snapshot.GetPos());
-			pj.m_Body.m_InputV = snapshot.GetInputV();
-			pj.m_Body.m_NonInputV = snapshot.GetNonInputV();
+			pj.GetBody().SetPos(snapshot.GetPos());
+			pj.GetBody().m_InputV = snapshot.GetInputV();
+			pj.GetBody().m_NonInputV = snapshot.GetNonInputV();
 
-			return pj.m_Body.GetPos();
+			return pj.GetBody().GetPos();
 		}
 		else
 		{
@@ -52,11 +52,11 @@ namespace rmkl {
 			PjState after = _history.at(1);
 			float alpha = (renderTime - before.Tick * tickrate) / ((after.Tick - before.Tick) * tickrate);
 
-			pj.m_Body.SetPos(utils::Lerp(before.GetPos(), after.GetPos(), alpha));
-			pj.m_Body.m_InputV = utils::Lerp(before.GetInputV(), after.GetInputV(), alpha);
-			pj.m_Body.m_NonInputV = utils::Lerp(before.GetNonInputV(), after.GetNonInputV(), alpha);
+			pj.GetBody().SetPos(utils::Lerp(before.GetPos(), after.GetPos(), alpha));
+			pj.GetBody().m_InputV = utils::Lerp(before.GetInputV(), after.GetInputV(), alpha);
+			pj.GetBody().m_NonInputV = utils::Lerp(before.GetNonInputV(), after.GetNonInputV(), alpha);
 
-			return pj.m_Body.GetPos();
+			return pj.GetBody().GetPos();
 		}
 	}
 }

@@ -39,20 +39,20 @@ namespace rmkl {
 		for (auto&[id, pj] : m_Pjs)
 		{
 			NetMessage::SendTo(NetMessage::Type::SpawnPj, 
-				PjSpawnState { id, pj.m_Body.GetPos().x, pj.m_Body.GetPos().y, pj.Spritesheet, pj.Palette },
+				PjSpawnState { id, pj.GetBody().GetPos().x, pj.GetBody().GetPos().y, pj.Spritesheet, pj.Palette },
 				client.EnetPeer);
 		}
 
 		// instantiate new pj
 		float x = 6.0f, y = 2.0f;
 		ServerPj pj(x, y);
-		m_Pjs.insert({ pj.m_Id, pj });
+		m_Pjs.insert({ pj.GetId(), pj });
 		NetMessage::SendToAll(NetMessage::Type::SpawnPj,
-			PjSpawnState{ pj.m_Id, pj.m_Body.GetPos().x, pj.m_Body.GetPos().y, pj.Spritesheet, pj.Palette },
+			PjSpawnState{ pj.GetId(), pj.GetBody().GetPos().x, pj.GetBody().GetPos().y, pj.Spritesheet, pj.Palette },
 			m_EnetHost);
 
-		SetPjOwnership(pj.m_Id, client.Id);
-		NetMessage::SendTo(NetMessage::Type::SetSpectatingPjId, pj.m_Id, client.EnetPeer);
+		SetPjOwnership(pj.GetId(), client.Id);
+		NetMessage::SendTo(NetMessage::Type::SetSpectatingPjId, pj.GetId(), client.EnetPeer);
 
 		// TODO walls and emitters
 	}

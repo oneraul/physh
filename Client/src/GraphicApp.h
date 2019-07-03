@@ -6,6 +6,7 @@
 #include "Batch.h"
 #include "pj/Pj.h"
 #include <enet/enet.h>
+#include <map>
 
 namespace rmkl {
 

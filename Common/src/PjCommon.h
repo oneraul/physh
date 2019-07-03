@@ -18,15 +18,18 @@ namespace rmkl {
 		void UseAbility(const Input& input);
 		void UpdateCd();
 
+		inline int GetId() const { return m_Id; }
+		inline Rigidbody GetBody() const { return m_Body; }
+
 	public:
-		int m_Id;
-		Rigidbody m_Body;
 		int Spritesheet;
 		int Palette;
 		std::set<PjState, PjStateCompareTick> History;
 
 	private:
+		int m_Id;
 		int m_Cd;
+		Rigidbody m_Body;
 
 	private:
 		static const int s_CdDuration;

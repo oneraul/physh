@@ -40,7 +40,7 @@ namespace rmkl {
 	void Pj::Draw(Batch& batch)
 	{
 		glm::vec2 center = m_Mode->GetDrawPos(*this);
-		glm::vec2 half = m_Body.m_Collider.Half;
+		glm::vec2 half = GetBody().m_Collider.Half;
 		Rect rect = { center.x - half.x, center.y - half.y, half.x * 2, half.y * 2 };
 		glm::vec4 colour(0, 1.0f, 1.0f, 0.5f);
 		batch.Draw(rect, colour);

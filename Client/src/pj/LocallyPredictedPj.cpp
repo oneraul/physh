@@ -34,7 +34,7 @@ namespace rmkl {
 	vec2 LocallyPredictedPj::GetRawInterpolatedPos(const Pj& pj)
 	{
 		std::vector<Input> pendingInputs = ServiceLocator::GetInput();
-		vec2 pos = pj.m_Body.GetPos();
+		vec2 pos = pj.GetBody().GetPos();
 
 		if (pendingInputs.size() > 1)
 		{
