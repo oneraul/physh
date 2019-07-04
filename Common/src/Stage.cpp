@@ -38,8 +38,9 @@ namespace rmkl {
 		{
 			if (emitter->Update(m_PhysicsTick))
 			{
-				auto[snapshot, inserted] = History.emplace(StageSnapshot(m_PhysicsTick));
-				//snapshot->Emitters.emplace_back(emitter); // TODO ------------------------------------
+				auto& [const_snapshot, inserted] = History.emplace(StageSnapshot(m_PhysicsTick));
+				auto& emitters = const_cast<std::vector<ForceEmitter*>&>(const_snapshot->Emitters);
+				emitters.emplace_back(emitter);
 			}
 		}
 
