@@ -4,8 +4,12 @@
 namespace rmkl {
 
 	RectForceEmitterPulsating::RectForceEmitterPulsating(Aabb aabb, glm::vec2 dir, float impulseMagnitude, int period, int delta)
-		: m_Aabb(aabb), m_ImpulseMagnitude(impulseMagnitude), m_Dir(dir), m_Impulse(dir * impulseMagnitude),
-		m_Period(period), m_Delta(delta)
+		: m_Aabb(aabb)
+		, m_ImpulseMagnitude(impulseMagnitude)
+		, m_Dir(dir)
+		, m_Impulse(dir * impulseMagnitude)
+		, m_Period(period)
+		, m_Delta(delta)
 	{
 	}
 
@@ -30,6 +34,5 @@ namespace rmkl {
 		float a = (float)GetPhase(tick) / m_Period;
 		return { 0, 1.0f, 0.5f, a * 0.5f };
 	}
-
 
 }

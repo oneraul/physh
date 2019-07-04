@@ -45,4 +45,5 @@ namespace rmkl {
 		glm::vec4 colour(0, 1.0f, 1.0f, 0.5f);
 		batch.Draw(rect, colour);
 	}
+
 }

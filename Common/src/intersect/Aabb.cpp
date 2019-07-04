@@ -8,7 +8,8 @@ namespace rmkl {
 	using glm::vec2;
 
 	Aabb::Aabb(vec2 pos, vec2 half)
-		: Pos(pos), Half(half)
+		: Pos(pos)
+		, Half(half)
 	{
 		ASSERT(half.x != 0, "the size of the aabb cannot be 0")
 		ASSERT(half.y != 0, "the size of the aabb cannot be 0")

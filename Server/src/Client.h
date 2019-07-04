@@ -6,13 +6,16 @@
 
 namespace rmkl {
 
-	class Client {
+	class Client 
+	{
 	public:
 		Client(ENetPeer* peer);
+
 	public:
 		ENetPeer* EnetPeer;
 		int Id;
 		std::vector<Input> InputBuffer;
 		int ControlledPj;
 	};
+
 }

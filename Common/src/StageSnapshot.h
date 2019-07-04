@@ -26,4 +26,5 @@ namespace rmkl {
 		bool operator()(int tick, StageSnapshot const& state) const { return tick < state.Tick; }
 		bool operator()(StageSnapshot const& state, int tick) const { return state.Tick < tick; }
 	};
+
 }

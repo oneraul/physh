@@ -50,4 +50,5 @@ namespace rmkl {
 		if (historyStartsAtTick > 0)
 			History.erase(History.begin(), History.lower_bound(historyStartsAtTick));
 	}
+
 }

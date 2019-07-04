@@ -19,6 +19,7 @@ namespace rmkl {
 		void End();
 		void Draw(Rect& rect, glm::vec4& colour);
 		void DrawAabb(Aabb& aabb, glm::vec4& colour);
+
 	private:
 		unsigned int m_SpritesInBatch;
 		float m_Vertices[1000 * 4 * (2 + 4)]; //max sprites * vertices per sprite * floats per vertex

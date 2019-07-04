@@ -4,8 +4,10 @@
 namespace rmkl {
 
 	Client::Client(ENetPeer* peer)
-		: EnetPeer(peer), Id(peer->connectID), ControlledPj(-1)
+		: EnetPeer(peer)
+		, Id(peer->connectID)
+		, ControlledPj(-1)
 	{
-
 	}
+
 }

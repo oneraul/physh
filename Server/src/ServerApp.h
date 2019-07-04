@@ -12,7 +12,6 @@ namespace rmkl {
 	class ServerApp : public rmkl::App
 	{
 	public:
-
 		ServerApp();
 		~ServerApp();
 

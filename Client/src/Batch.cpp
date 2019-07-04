@@ -5,7 +5,9 @@
 namespace rmkl {
 
 	Batch::Batch()
-		: m_SpritesInBatch(0), m_Vertices{}, m_Indices{}
+		: m_SpritesInBatch(0)
+		, m_Vertices{}
+		, m_Indices{}
 	{
 		glGenVertexArrays(1, &m_VertexArray);
 		glGenBuffers(1, &m_IndexBuffer);
@@ -99,4 +101,5 @@ namespace rmkl {
 		Rect rect = { aabb.Pos.x - aabb.Half.x, aabb.Pos.y - aabb.Half.y, aabb.Half.x * 2.0f, aabb.Half.y * 2.0f };
 		Draw(rect, colour);
 	}
+
 }

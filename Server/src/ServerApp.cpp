@@ -7,8 +7,8 @@ namespace rmkl {
 
 	ServerApp::ServerApp()
 		: m_Stage(std::make_unique<Stage>())
-		, m_HistoryBufferLength(SERVER_TICKRATE /* 1s */),
-		m_UpdateAccumulator(0)
+		, m_HistoryBufferLength(SERVER_TICKRATE /* 1s */)
+		, m_UpdateAccumulator(0)
 	{
 		ASSERT(enet_initialize() == 0, "An error occurred while initializing ENet.");
 		

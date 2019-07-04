@@ -12,8 +12,10 @@ namespace rmkl {
 	public:
 		glm::vec2 Pos;
 		glm::vec2 Half;
+
 	public:
 		static Aabb CreateWithMaxMin(glm::vec2 min, glm::vec2 max);
+
 	public:
 		Aabb(glm::vec2 pos, glm::vec2 half);
 		~Aabb();
@@ -28,4 +30,5 @@ namespace rmkl {
 		Sweep SweepAabb(Aabb& box, glm::vec2 delta);
 		Sweep SweepInto(std::vector<Aabb> staticColliders, glm::vec2 delta);
 	};
+
 }
