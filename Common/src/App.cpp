@@ -5,7 +5,6 @@ namespace rmkl {
 
 	App::App()
 		: m_Running(true) 
-		, m_FixedFrameDuration(std::chrono::milliseconds(33))
 		, m_InterpolationAlpha(0)
 	{
 	}
@@ -19,7 +18,7 @@ namespace rmkl {
 	void App::Run()
 	{
 		std::chrono::nanoseconds lag(0);
-		std::chrono::nanoseconds m_fixedFrameDuration(std::chrono::milliseconds(33));
+		std::chrono::nanoseconds fixedFrameDuration(std::chrono::milliseconds(33));
 
 		auto previousTime = std::chrono::high_resolution_clock::now();
 
@@ -27,22 +26,22 @@ namespace rmkl {
 		{
 			auto currentTime = std::chrono::high_resolution_clock::now();
 			auto elapsedTime = currentTime - previousTime;
+			std::chrono::duration<float> elapsedTime_in_seconds = currentTime - previousTime;
+
 			previousTime = currentTime;
 			lag += elapsedTime;
 
 			PollEvents();
-			ProcessNetworkEvents();
 
-			while (lag >= m_FixedFrameDuration)
+			while (lag >= fixedFrameDuration)
 			{
-				lag -= m_FixedFrameDuration;
+				lag -= fixedFrameDuration;
 				FixedUpdate();
 			}
 
-			Update((float)elapsedTime.count());
+			m_InterpolationAlpha = (float)lag.count() / fixedFrameDuration.count();
 
-			m_InterpolationAlpha = (float)lag.count() / m_FixedFrameDuration.count();
-			
+			Update(elapsedTime_in_seconds.count());
 			Render(m_InterpolationAlpha);
 		}
 	}
@@ -69,4 +68,5 @@ namespace rmkl {
 			}
 		}
 	}
+
 }
