@@ -23,12 +23,21 @@ namespace rmkl {
 	{
 		return PjState(tick, m_Id, m_Body.GetPos(), m_Body.m_InputV, m_Body.m_NonInputV);
 	}
+
+	void PjCommon::SetState(const PjState& state)
+	{
+		m_Body.SetPos(state.GetPos());
+		m_Body.m_InputV = state.GetInputV();
+		m_Body.m_NonInputV = state.GetNonInputV();
+	}
 	
 	void PjCommon::FixedUpdate(const Input& input, const Stage& stage)
 	{
+		// TODO set flags for updatecd and useability so they don't get called too often in case of reconciliation. or maybe reset them with extra state info?
+
 		//UpdateCd();
 		//UseAbility(input);
-		//ApplyStageSnapshot(input.Tick, stage);
+		ApplyStageSnapshot(input.Tick, stage);
 		m_Body.FixedUpdate(input, stage);
 	}
 	

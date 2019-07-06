@@ -44,7 +44,7 @@ namespace rmkl {
 		for (auto&[id, pj] : m_Pjs)
 		{
 			NetMessage::SendTo(NetMessage::Type::SpawnPj, 
-				PjSpawnState { id, pj.GetBody().GetPos().x, pj.GetBody().GetPos().y, pj.Spritesheet, pj.Palette },
+				PjSpawnState { id, pj.GetPos().x, pj.GetPos().y, pj.Spritesheet, pj.Palette },
 				client.EnetPeer);
 		}
 
@@ -53,7 +53,7 @@ namespace rmkl {
 		ServerPj pj(x, y);
 		m_Pjs.insert({ pj.GetId(), pj });
 		NetMessage::SendToAll(NetMessage::Type::SpawnPj,
-			PjSpawnState{ pj.GetId(), pj.GetBody().GetPos().x, pj.GetBody().GetPos().y, pj.Spritesheet, pj.Palette },
+			PjSpawnState{ pj.GetId(), pj.GetPos().x, pj.GetPos().y, pj.Spritesheet, pj.Palette },
 			m_EnetHost);
 
 		SetPjOwnership(pj.GetId(), client.Id);

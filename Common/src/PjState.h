@@ -23,9 +23,9 @@ namespace rmkl {
 
 		int Tick;
 		int Id;
-		float posX, posY;
-		float inputVX, inputVY;
-		float nonInputVX, nonInputVY;
+		mutable float posX, posY;
+		mutable float inputVX, inputVY;
+		mutable float nonInputVX, nonInputVY;
 		// animation
 		//currentDir = self.sprite.dir,
 		//currentSprite = self.sprite.currentSprite,
@@ -40,6 +40,16 @@ namespace rmkl {
 		inline glm::vec2 GetPos() const { return glm::vec2(posX, posY); }
 		inline glm::vec2 GetInputV() const { return glm::vec2(inputVX, inputVY); }
 		inline glm::vec2 GetNonInputV() const { return glm::vec2(nonInputVX, nonInputVY); }
+
+		void Update(PjState data) const
+		{
+			posX = data.posX;
+			posY = data.posY;
+			inputVX = data.inputVX;
+			inputVY = data.inputVY;
+			nonInputVX = data.nonInputVX;
+			nonInputVY = data.nonInputVY;
+		}
 	};
 
 	struct PjStateCompareTick

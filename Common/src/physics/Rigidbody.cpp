@@ -4,8 +4,6 @@
 
 namespace rmkl {
 
-	using glm::vec2;
-
 	Rigidbody::Rigidbody(float x, float y, float mass = 1.0f)
 		: m_Mass(mass)
 		, m_MaxInputV(2.5f)
