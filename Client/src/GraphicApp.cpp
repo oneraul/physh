@@ -9,10 +9,20 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "ForceEmitter.h"
 #include "NetMessage.h"
-#include "ServiceLocator.h"
 #include "Utils.h"
+#include <random>
 
 namespace rmkl {
+
+	GraphicApp* GraphicApp::_instance = nullptr;
+
+	GraphicApp* GraphicApp::GetInstance()
+	{
+		if (_instance == nullptr)
+			_instance = new GraphicApp();
+		return _instance;
+	}
+
 
 	GraphicApp::GraphicApp()
 		: m_WindowWidth(800)
@@ -22,7 +32,7 @@ namespace rmkl {
 		, m_ControlledPj(-1)
 		, m_SpectatingPj(-1)
 		, m_PacketLoss(0.2f)
-		, m_Cam()
+		, m_Cam(0, 0, 0)
 	{
 		// Init Enet
 
@@ -41,7 +51,7 @@ namespace rmkl {
 		peer = enet_host_connect(m_EnetHost, &address, 2, 0);
 		ASSERT(peer, "No available peers for initiating an ENet connection.");
 
-		if (enet_host_service(m_EnetHost, &event, 5000) > 0
+		/*if (enet_host_service(m_EnetHost, &event, 5000) > 0
 			&& event.type == ENET_EVENT_TYPE_CONNECT)
 		{
 			std::cout << "Connection succeeded." << std::endl;
@@ -50,7 +60,7 @@ namespace rmkl {
 		{
 			enet_peer_reset(peer);
 			std::cout << "Connection failed." << std::endl;
-		}
+		}*/
 
 		// Init GLFW window
 
@@ -121,16 +131,14 @@ namespace rmkl {
 		m_Shader.reset(new Shader(vertexSrc, fragmentSrc));
 
 		float h = 6.0f;
-		float w = (h / GetWindowHeight()) * GetWindowWidth();
+		float w = (h / m_WindowHeight) * m_WindowWidth;
 		m_Proj = glm::ortho(0.0f, w, 0.0f, h);
 
-		m_Cam[0] = 0;
-		m_Cam[1] = 0;
-
-		ServiceLocator::ProvideInput(&m_PendingInputs);
-		//ServiceLocator::ProvideInterpolationAlpha(&m_InterpolationAlpha);
-		//ServiceLocator::ProvidePhysicsTick(&m_Stage->PhysicsTick);
-		ServiceLocator::ProvideRtt(&m_EnetHost->peers->roundTripTime);
+		m_Pjs.try_emplace( 42, Pj{  42, 2, 1.5f });
+		m_Pjs.try_emplace( 69, Pj{  69, 2, 1.5f });
+		m_Pjs.try_emplace(117, Pj{ 117, 2, 1.5f });
+		m_Pjs.at(42).SetMode(PjModes::DUMMY);
+		m_Pjs.at(69).SetMode(PjModes::PREDICTED);
 	}
 
 	GraphicApp::~GraphicApp()
@@ -146,23 +154,26 @@ namespace rmkl {
 
 	void GraphicApp::SetVsync(bool value)
 	{
-		m_Vsync = value;
-		glfwSwapInterval(m_Vsync ? 1 : 0);
+		if (m_Vsync != value)
+		{
+			m_Vsync = value;
+			glfwSwapInterval(m_Vsync ? 1 : 0);
+		}
 	}
 
 	void GraphicApp::PollEvents()
 	{
 		glfwPollEvents();
-		ProcessNetworkEvents();
+		//ProcessNetworkEvents();
 	}
 
 	void GraphicApp::FixedUpdate()
 	{
 		m_Stage->FixedUpdate();
 
-		if (m_ControlledPj == -1) return;
-		Pj& pj = m_Pjs.at(m_ControlledPj);
-			
+		//if (m_ControlledPj == -1) return;
+		//Pj& pj = m_Pjs.at(m_ControlledPj);
+		//	
 		glm::vec2 rawInput = glm::vec2();
 		if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS)
 			rawInput.y += 1.0f;
@@ -176,24 +187,63 @@ namespace rmkl {
 		if (rawInput.x != 0 || rawInput.y != 0)
 			rawInput = glm::normalize(rawInput);
 
-		Input input {
-			rawInput.x,
-			rawInput.y,
-			glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS,
-			m_Stage->GetTick()
-		};
+		//Input input {
+		//	rawInput.x,
+		//	rawInput.y,
+		//	glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS,
+		//	m_Stage->GetTick()
+		//};
 
-		SendInput(input);
+		//SendInput(input);
 
-		//Do client - side prediction.
-		pj.FixedUpdate(input, *m_Stage);
+		////Do client - side prediction.
+		//pj.FixedUpdate(input, *m_Stage);
 
-		//Save this input for later reconciliation.
-		m_PendingInputs.emplace_back(input);
-		pj.History.emplace(pj.SerializeState(input.Tick));
+		////Save this input for later reconciliation.
+		//m_PendingInputs.emplace_back(input);
+		//pj.History.emplace(pj.SerializeState(input.Tick));
 
-		if (m_Stage->GetTick() > 500)
-			pj.History.erase(pj.History.begin(), pj.History.lower_bound(m_Stage->GetTick() - 500));
+		//if (m_Stage->GetTick() > 500)
+		//	pj.History.erase(pj.History.begin(), pj.History.lower_bound(m_Stage->GetTick() - 500));
+
+
+		int tick = m_Stage->GetTick();
+		Input dummyInput = Input{ rawInput.x, rawInput.y, 0, tick };
+		Input localInput = Input{ rawInput.x, rawInput.y, 0, tick };
+		if ((tick % 30) > (30 - 30 * m_PacketLoss))
+		{
+			//std::cout << tick << std::endl;
+			auto _pastInput = *m_PendingInputs.rbegin();
+			localInput.X = _pastInput.X;
+			localInput.Y = _pastInput.Y;
+		}
+		m_PendingInputs.emplace_back(localInput);
+
+		Pj& dummyPj = m_Pjs.at(42);
+		dummyPj.FixedUpdate(dummyInput, *m_Stage);
+		dummyPj.History.erase(dummyPj.History.begin(), dummyPj.History.lower_bound(tick - 30));
+		dummyPj.History.emplace(dummyPj.SerializeState(tick));
+
+		Pj& localPj = m_Pjs.at(69);
+		localPj.FixedUpdate(localInput, *m_Stage);
+		localPj.History.erase(localPj.History.begin(), localPj.History.lower_bound(tick - 30));
+		localPj.History.emplace(localPj.SerializeState(tick));
+
+		// simulate receive update from server
+		static int doit = 0;
+		if (++doit % 3 > 0)
+		{
+			auto state = dummyPj.History.find(tick-7);
+			if (state != dummyPj.History.end())
+			{
+				m_PendingInputs.erase(std::remove_if(m_PendingInputs.begin(), m_PendingInputs.end(),
+					[=](const Input& input) { return input.Tick <= state->Tick; }),
+					m_PendingInputs.end());
+
+				localPj.ProcessStateUpdate(*state, *m_Stage);
+				m_Pjs.at(117).ProcessStateUpdate(*state, *m_Stage);
+			}
+		}
 	}
 
 	void GraphicApp::SendInput(Input input)
@@ -253,13 +303,16 @@ namespace rmkl {
 				Pj& pj = m_Pjs.at(state.Id);
 				if (pj.GetMode() == PjModes::PREDICTED)
 				{
-					//utils::RemoveOldSnapshots(m_PendingInputs, state.Tick);
-					//m_PendingInputs.erase(std::remove_if(m_PendingInputs.begin(), m_PendingInputs.end(),
-					//	[=](const Input& input) { return input.Tick <= state.Tick; }),
-					//	m_PendingInputs.end());
+					m_PendingInputs.erase(std::remove_if(m_PendingInputs.begin(), m_PendingInputs.end(),
+						[=](const Input& input) { return input.Tick <= state.Tick; }),
+						m_PendingInputs.end());
+
+					/*m_PendingInputs.erase(m_PendingInputs.begin(), 
+						std::lower_bound(m_PendingInputs.begin(), m_PendingInputs.end(), 
+							[=](const Input& input) { return input.Tick <= state.Tick; }));*/
 				}
 
-				pj.UpdateState(state, *m_Stage);
+				pj.ProcessStateUpdate(state, *m_Stage);
 			}
 			break;
 		}
@@ -301,7 +354,7 @@ namespace rmkl {
 		case NetMessage::Type::SyncTickNumber:
 		{
 			int tick = NetMessage::unpackOne<int>(data);
-			float tickrate = 1.0f / FIXED_UPDATE_FPS;
+			float tickrate = 1.0f / 10; //FIXED_UPDATE_FPS;
 			float rtt = 0.15f; // TODO ------------------------------------------------------------
 			float serverInputBuffer = tickrate;
 			float forward = rtt + serverInputBuffer;
@@ -321,7 +374,11 @@ namespace rmkl {
 	}
 
 
-	void GraphicApp::Update(float dt) {}
+	void GraphicApp::Update(float dt)
+	{
+		for (auto&[_, pj] : m_Pjs)
+			pj.Update(dt);
+	}
 
 	void GraphicApp::Render(float interpolationAlpha)
 	{
@@ -335,7 +392,10 @@ namespace rmkl {
 
 		m_Shader->Bind();
 
-		m_View = glm::translate(glm::mat4x4(1.0f), glm::vec3(m_Cam[0], m_Cam[1], m_Cam[2]));
+		m_Cam.x = -m_Pjs.at(42).GetDrawPos().x + 4;
+		m_Cam.y = -m_Pjs.at(42).GetDrawPos().y + 3;
+
+		m_View = glm::translate(glm::mat4x4(1.0f), m_Cam);
 		m_Model = glm::translate(glm::mat4x4(1.0f), glm::vec3(0));
 		glm::mat4x4 mvp = m_Proj * m_View * m_Model;
 		m_Shader->SetUniformMat4f("u_MVP", mvp);
@@ -361,7 +421,7 @@ namespace rmkl {
 
 		RenderImGui();
 
-		ImGui::GetIO().DisplaySize = ImVec2((float)GetWindowWidth(), (float)GetWindowHeight());
+		ImGui::GetIO().DisplaySize = ImVec2((float)m_WindowWidth, (float)m_WindowHeight);
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -401,6 +461,10 @@ namespace rmkl {
 		if (targetFps != GetTargetFps())
 			SetTargetFps(targetFps);*/
 
+		static bool vsync = false;
+		if(ImGui::Checkbox("VSync", &vsync))
+			SetVsync(vsync);
+
 		ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
 		ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
 		ImGui::Separator();
@@ -409,9 +473,6 @@ namespace rmkl {
 		ImGui::Text("%ims RTT", m_EnetHost->peers->roundTripTime);
 		ImGui::Text("%i pending inputs", m_PendingInputs.size());
 		ImGui::SliderFloat("Packet loss", &m_PacketLoss, 0.0f, 1.0f);
-
-		ImGui::SliderFloat("ViewX", &m_Cam[0], -7.0f, 14.0f);
-		ImGui::SliderFloat("ViewY", &m_Cam[1], -7.0f, 14.0f);
 
 		ImGui::End();
 	}

@@ -22,8 +22,8 @@
       <Filter>pj</Filter>
     </ClInclude>
     <ClInclude Include="src\pj\NetworkInterPolatedPj.h" />
-    <ClInclude Include="src\ServiceLocator.h" />
     <ClInclude Include="src\pj\LocallyPredictedPj.h" />
+    <ClInclude Include="src\pj\DummyMode.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Batch.cpp" />
@@ -40,7 +40,7 @@
       <Filter>pj</Filter>
     </ClCompile>
     <ClCompile Include="src\pj\NetworkInterPolatedPj.cpp" />
-    <ClCompile Include="src\ServiceLocator.cpp" />
     <ClCompile Include="src\pj\LocallyPredictedPj.cpp" />
+    <ClCompile Include="src\pj\DummyMode.cpp" />
   </ItemGroup>
 </Project>

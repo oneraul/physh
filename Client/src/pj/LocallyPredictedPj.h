@@ -7,13 +7,14 @@ namespace rmkl {
 	class LocallyPredictedPj : public PjMode
 	{
 	public:
-		LocallyPredictedPj() : m_PosDesync(0) {}
-		virtual void UpdateState(Pj& pj, const PjState& state, const Stage& stage) override;
-		virtual glm::vec2 GetDrawPos(Pj& pj) override;
-		virtual PjModes GetType() const override;
+		LocallyPredictedPj() : m_PosDesync(0, 0) {}
+		virtual PjModes GetType() const override { return PjModes::PREDICTED; }
+		virtual void Update(Pj& pj, float dt) override;
+		virtual void ProcessStateUpdate(Pj& pj, const PjState& state, const Stage& stage) override;
+		virtual glm::vec2 GetDrawPos(const Pj& pj) const override;
 
 	private:
-		glm::vec2 GetRawInterpolatedPos(const Pj& pj);
+		glm::vec2 GetRawInterpolatedPos(const Pj& pj) const;
 
 	private:
 		glm::vec2 m_PosDesync;

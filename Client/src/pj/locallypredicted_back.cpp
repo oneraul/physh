@@ -2,74 +2,68 @@
 #include "LocallyPredictedPj.h"
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/compatibility.hpp>
-#include "ServiceLocator.h"
 #include "Utils.h"
+#include "GraphicApp.h"
 
 namespace rmkl {
 
-	using glm::vec2;
+	float LocallyPredictedPj::MAX_ERROR_DISTANCE_FOR_SMOOTH_CORRECTION = 0.5f;
 
-	float LocallyPredictedPj::MAX_ERROR_DISTANCE_FOR_SMOOTH_CORRECTION = 2.0f;
-
-	PjModes LocallyPredictedPj::GetType() const { return PjModes::PREDICTED; }
-
-	void LocallyPredictedPj::UpdateState(const Pj& pj, const PjState& state, const Stage& stage)
+	void LocallyPredictedPj::ProcessStateUpdate(Pj& pj, const PjState& state, const Stage& stage)
 	{
-		if (pj.m_History.count(state.Tick) == 0) return;
+		if (pj.History.find(state.Tick) == pj.History.end()) return;
 
-		Rigidbody& body = pj.m_Body;
-		std::vector<Input> pendingInputs = ServiceLocator::GetInput();
+		Rigidbody& body = pj.GetBody();
 
-		// if there was a desync on the tick jsut received, reconciliate
-		vec2 serverPos = vec2{ state.posX, state.posY };
-		vec2 predictedPos = pj.m_History.at(state.Tick).GetPos();
-		vec2 positionError = serverPos - predictedPos;
+		// if there was a desync on the tick just received, reconciliate
+		glm::vec2 serverPos = state.GetPos();
+		glm::vec2 predictedPos = pj.History.find(state.Tick)->GetPos();
+		glm::vec2 positionError = serverPos - predictedPos;
 		if (glm::length2(positionError) > 1e-8)
 		{
-			vec2 prevVisualPos = GetRawInterpolatedPos(pj) + m_PosDesync;
+			glm::vec2 prevVisualPos = GetRawInterpolatedPos(pj) + m_PosDesync;
 
 			// rewind
 			body.SetPos(serverPos);
-			body.m_InputV = vec2{ state.inputVX, state.inputVY };
-			body.m_NonInputV = vec2{ state.nonInputVX, state.nonInputVY };
+			body.m_InputV = state.GetInputV();
+			body.m_NonInputV = state.GetNonInputV();
 
 			// resimulate
-			for (Input& input : pendingInputs)
+			for (const Input& input : GraphicApp::GetPendingInputs())
 			{
 				int tick = input.Tick;
 				pj.ApplyStageSnapshot(tick, stage);
 				body.FixedUpdate(input, stage);
-				pj.m_History.insert_or_assign(tick, pj.SerializeState(tick));
+				pj.History.find(tick)->Update(pj.SerializeState(tick));
 			}
 
 			// calculate desync
-			vec2 desync = prevVisualPos - GetRawInterpolatedPos(pj);
+			glm::vec2 desync = prevVisualPos - GetRawInterpolatedPos(pj);
 			float maxDistance2 = MAX_ERROR_DISTANCE_FOR_SMOOTH_CORRECTION * MAX_ERROR_DISTANCE_FOR_SMOOTH_CORRECTION;
-			m_PosDesync = glm::length2(desync) >= maxDistance2 ? vec2(0, 0) : desync;
+			m_PosDesync = glm::length2(desync) >= maxDistance2 ? glm::vec2(0, 0) : desync;
 		}
 	}
 
-	glm::vec2 LocallyPredictedPj::GetDrawPos(const Pj& pj)
+	void LocallyPredictedPj::Update(Pj& pj, float dt)
 	{
-		m_PosDesync *= 0.9;
+		m_PosDesync *= 0.99; // TODO make framerate independent
 		if (glm::length2(m_PosDesync) < 1e-4)
-			m_PosDesync = vec2(0, 0);
+			m_PosDesync = glm::vec2(0, 0);
+	}
 
+	glm::vec2 LocallyPredictedPj::GetDrawPos(const Pj& pj) const
+	{
 		return GetRawInterpolatedPos(pj) + m_PosDesync;
 	}
 
-	glm::vec2 LocallyPredictedPj::GetRawInterpolatedPos(const Pj& pj)
+	glm::vec2 LocallyPredictedPj::GetRawInterpolatedPos(const Pj& pj) const
 	{
-		std::vector<Input> pendingInputs = ServiceLocator::GetInput();
-		vec2 pos = pj.m_Body.m_Pos;
+		if (pj.History.size() < 2)
+			return pj.GetPos();
 
-		if (pendingInputs.size() > 1)
-		{
-			unsigned int previousInputTick = pendingInputs.at(pendingInputs.size() - 1).Tick;
-			vec2 prevPos = pj.m_History.at(previousInputTick).GetPos();
-			pos = utils::Lerp(prevPos, pos, ServiceLocator::GetInterpolationAlpha());
-		}
-
-		return pos;
+		glm::vec2 currPos = pj.GetPos();
+		glm::vec2 prevPos = (++pj.History.rbegin())->GetPos();
+		float alpha = GraphicApp::GetInterpolationAlpha();
+		return utils::Lerp(prevPos, currPos, alpha);
 	}
 }

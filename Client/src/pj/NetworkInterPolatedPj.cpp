@@ -1,63 +1,70 @@
 #include "NetworkInterPolatedPj.h"
-#include "ServiceLocator.h"
 #include "Utils.h"
+#include "GraphicApp.h"
 
 namespace rmkl {
 
-	PjModes NetworkInterpolatedPj::GetType() const { return PjModes::INTERPOLATED; }
-
-	void NetworkInterpolatedPj::UpdateState(Pj& pj, const PjState& state, const Stage& stage)
+	void NetworkInterpolatedPj::ProcessStateUpdate(Pj& pj, const PjState& state, const Stage& stage)
 	{
-		_history.emplace_back(state);
-		std::sort(_history.begin(), _history.end());
+		pj.History.emplace(state);
 	}
 
-	glm::vec2 NetworkInterpolatedPj::GetDrawPos(Pj& pj)
+	glm::vec2 NetworkInterpolatedPj::GetDrawPos(const Pj& pj) const
 	{
-		int FIXED_UPDATE_FPS = 30;
-		float tickrate = 1.0f / FIXED_UPDATE_FPS;
-		float SERVER_TICKRATE = 1.0f / 20;
-		float rtt = static_cast<int>(ServiceLocator::GetRtt()) / 100.0f;
-		float interpolationDelay = SERVER_TICKRATE * 2 + rtt/2;
+		if (pj.History.size() < 2)
+			return pj.GetPos();
+		
+		auto it = pj.History.begin();
+		PjState before = *it;
+		PjState after = *(++it);
 
-		// calculate the rendering time
-		float currentTime = (ServiceLocator::GetPhysicsTick() + ServiceLocator::GetInterpolationAlpha()) * tickrate;
-		float renderTime = currentTime - interpolationDelay;
+		float tickrate = GraphicApp::GetFixedTickrate();
+		float renderTime = CalculateRenderTime();
+		float alpha = (renderTime - before.Tick * tickrate) / ((after.Tick - before.Tick) * tickrate);
 
-		// remove old snapshots
-		while (_history.size() > 1)
+		return utils::Lerp(before.GetPos(), after.GetPos(), alpha);
+	}
+
+	void NetworkInterpolatedPj::Update(Pj& pj, float dt)
+	{
+		float tickrate = GraphicApp::GetFixedTickrate();
+		float renderTime = CalculateRenderTime();
+
+		// remove old state
+		while (pj.History.size() > 1)
 		{
-			if (_history.at(0).Tick * tickrate < renderTime
-			&&  _history.at(1).Tick * tickrate <= renderTime)
-				_history.erase(_history.begin());
+			auto first = pj.History.begin();
+			auto second = ++pj.History.begin();
+
+			if (first->Tick * tickrate < renderTime
+				&& second->Tick * tickrate <= renderTime)
+				pj.History.erase(first);
+
 			else break;
 		}
 
-		if (_history.size() == 0)
+		// update pj state
+		if (pj.History.size() > 0)
 		{
-			return pj.GetBody().GetPos();
+			PjState state = *pj.History.begin();
+			if (pj.GetPos() != state.GetPos())
+				pj.SetState(state);
 		}
-		else if (_history.size() == 1)
-		{
-			PjState snapshot = _history.at(0);
-			pj.GetBody().SetPos(snapshot.GetPos());
-			pj.GetBody().m_InputV = snapshot.GetInputV();
-			pj.GetBody().m_NonInputV = snapshot.GetNonInputV();
+	}
 
-			return pj.GetBody().GetPos();
-		}
-		else
-		{
-			PjState before = _history.at(0);
-			PjState after = _history.at(1);
-			float alpha = (renderTime - before.Tick * tickrate) / ((after.Tick - before.Tick) * tickrate);
+	float NetworkInterpolatedPj::CalculateRenderTime() const
+	{
+		/*float rtt = GraphicApp::GetRtt() / 100.0f;
+		float interpolationdelay = GraphicApp::GetServerTickrate() * 2 + rtt / 2;
+		float currenttime = (GraphicApp::GetTick() + GraphicApp::GetInterpolationAlpha()) * GraphicApp::GetFixedTickrate();
+		float rendertime = currenttime - interpolationdelay;*/
 
-			pj.GetBody().SetPos(utils::Lerp(before.GetPos(), after.GetPos(), alpha));
-			pj.GetBody().m_InputV = utils::Lerp(before.GetInputV(), after.GetInputV(), alpha);
-			pj.GetBody().m_NonInputV = utils::Lerp(before.GetNonInputV(), after.GetNonInputV(), alpha);
 
-			return pj.GetBody().GetPos();
-		}
+
+		float currenttime = (GraphicApp::GetTick() + GraphicApp::GetInterpolationAlpha()) * GraphicApp::GetFixedTickrate();
+		float rendertime = currenttime - 0.3f;
+		rendertime = rendertime >= 0 ? rendertime : 0;
+		return rendertime;
 	}
 
 }

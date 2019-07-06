@@ -93,8 +93,8 @@
   <ItemGroup>
     <ClInclude Include="src\Batch.h" />
     <ClInclude Include="src\GraphicApp.h" />
+    <ClInclude Include="src\pj\DummyMode.h" />
     <ClInclude Include="src\pj\LocallyPredictedPj.h" />
-    <ClInclude Include="src\ServiceLocator.h" />
     <ClInclude Include="src\pj\NetworkInterPolatedPj.h" />
     <ClInclude Include="src\Shader.h" />
     <ClInclude Include="src\imgui\imgui_impl_glfw.h" />
@@ -105,9 +105,9 @@
     <ClCompile Include="src\Batch.cpp" />
     <ClCompile Include="src\GraphicApp.cpp" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\pj\DummyMode.cpp" />
     <ClCompile Include="src\pj\LocallyPredictedPj.cpp" />
     <ClCompile Include="src\pj\NetworkInterPolatedPj.cpp" />
-    <ClCompile Include="src\ServiceLocator.cpp" />
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\imgui\imgui_impl_glfw.cpp" />
     <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp" />

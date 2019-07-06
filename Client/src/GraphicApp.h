@@ -13,13 +13,20 @@ namespace rmkl {
 	class GraphicApp : public App
 	{
 	public:
-		GraphicApp();
-		virtual ~GraphicApp();
+		static GraphicApp* GetInstance();
+		static Stage GetStage() { return *(_instance->m_Stage); }
+		static int GetTick() { return _instance->m_Stage->GetTick(); }
+		static int GetRtt() { return _instance->m_EnetHost->peers->roundTripTime; }
+		static float GetInterpolationAlpha() { return _instance->m_InterpolationAlpha; }
+		static float GetFixedTickrate() { return 1.0f / 30; }
+		static float GetServerTickrate() { return 1.0f / 20; }
+		static const std::vector<Input>& GraphicApp::GetPendingInputs() { return _instance->m_PendingInputs; }
 
-		inline int GetWindowWidth() const { return m_WindowWidth; }
-		inline int GetWindowHeight() const { return m_WindowHeight; }
-		inline bool GetVsync() const { return m_Vsync; }
-		void SetVsync(bool value);
+	private:
+		static GraphicApp* _instance;
+
+	public:
+		virtual ~GraphicApp();
 
 	protected:
 		virtual void PollEvents() override;
@@ -31,8 +38,11 @@ namespace rmkl {
 		virtual void OnNetworkReceived(const ENetEvent& e) override;
 
 	private:
+		GraphicApp();
+		
 		void RenderImGui();
 		void SendInput(Input input);
+		void SetVsync(bool value);
 
 	private:
 		std::vector<Input> m_PendingInputs;
@@ -43,7 +53,7 @@ namespace rmkl {
 		glm::mat4 m_Proj;
 		glm::mat4 m_View;
 		glm::mat4 m_Model;
-		float m_Cam[2];
+		glm::vec3 m_Cam;
 
 		int m_WindowWidth;
 		int m_WindowHeight;
