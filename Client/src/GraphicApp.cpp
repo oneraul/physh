@@ -139,6 +139,7 @@ namespace rmkl {
 		m_Pjs.try_emplace(117, Pj{ 117, 2, 1.5f });
 		m_Pjs.at(42).SetMode(PjModes::DUMMY);
 		m_Pjs.at(69).SetMode(PjModes::PREDICTED);
+		m_ControlledPj = 42;
 	}
 
 	GraphicApp::~GraphicApp()
@@ -390,10 +391,10 @@ namespace rmkl {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+		if (m_ControlledPj != -1)
+			m_Cam = glm::vec3(-m_Pjs.at(m_ControlledPj).GetDrawPos() + glm::vec2(4, 3), 0);
+		
 		m_Shader->Bind();
-
-		m_Cam.x = -m_Pjs.at(42).GetDrawPos().x + 4;
-		m_Cam.y = -m_Pjs.at(42).GetDrawPos().y + 3;
 
 		m_View = glm::translate(glm::mat4x4(1.0f), m_Cam);
 		m_Model = glm::translate(glm::mat4x4(1.0f), glm::vec3(0));
