@@ -7,6 +7,7 @@
 #include "pj/Pj.h"
 #include <enet/enet.h>
 #include <map>
+#include "Camera.h"
 
 namespace rmkl {
 
@@ -29,7 +30,6 @@ namespace rmkl {
 		virtual ~GraphicApp();
 
 	protected:
-		virtual void PollEvents() override;
 		virtual void FixedUpdate() override;
 		virtual void Update(float dt) override;
 		virtual void Render(float interpolationAlpha) override;
@@ -43,6 +43,7 @@ namespace rmkl {
 		void RenderImGui();
 		void SendInput(Input input);
 		void SetVsync(bool value);
+		void UpdateRtt(int ms);
 
 	private:
 		std::vector<Input> m_PendingInputs;
@@ -50,10 +51,7 @@ namespace rmkl {
 		int m_ControlledPj;
 		int m_SpectatingPj;
 
-		glm::mat4 m_Proj;
-		glm::mat4 m_View;
-		glm::mat4 m_Model;
-		glm::vec3 m_Cam;
+		Camera m_Cam;
 
 		int m_WindowWidth;
 		int m_WindowHeight;
@@ -63,5 +61,7 @@ namespace rmkl {
 		std::unique_ptr<Batch> m_Batch;
 		std::unique_ptr<Stage> m_Stage;
 		float m_PacketLoss;
+		std::map<int, std::chrono::high_resolution_clock::time_point> pings;
+		int _rtt;
 	};
 }

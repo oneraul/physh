@@ -91,6 +91,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\Batch.h" />
     <ClInclude Include="src\GraphicApp.h" />
     <ClInclude Include="src\pj\DummyMode.h" />
@@ -102,6 +103,7 @@
     <ClInclude Include="src\pj\Pj.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Batch.cpp" />
     <ClCompile Include="src\GraphicApp.cpp" />
     <ClCompile Include="src\Main.cpp" />

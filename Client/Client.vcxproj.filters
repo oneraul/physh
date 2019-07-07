@@ -24,6 +24,7 @@
     <ClInclude Include="src\pj\NetworkInterPolatedPj.h" />
     <ClInclude Include="src\pj\LocallyPredictedPj.h" />
     <ClInclude Include="src\pj\DummyMode.h" />
+    <ClInclude Include="src\Camera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Batch.cpp" />
@@ -42,5 +43,6 @@
     <ClCompile Include="src\pj\NetworkInterPolatedPj.cpp" />
     <ClCompile Include="src\pj\LocallyPredictedPj.cpp" />
     <ClCompile Include="src\pj\DummyMode.cpp" />
+    <ClCompile Include="src\Camera.cpp" />
   </ItemGroup>
 </Project>

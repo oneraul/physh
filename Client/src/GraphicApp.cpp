@@ -32,7 +32,8 @@ namespace rmkl {
 		, m_ControlledPj(-1)
 		, m_SpectatingPj(-1)
 		, m_PacketLoss(0.2f)
-		, m_Cam(0, 0, 0)
+		, m_Cam(800, 600, 6)
+		, _rtt(0)
 	{
 		// Init Enet
 
@@ -51,7 +52,7 @@ namespace rmkl {
 		peer = enet_host_connect(m_EnetHost, &address, 2, 0);
 		ASSERT(peer, "No available peers for initiating an ENet connection.");
 
-		/*if (enet_host_service(m_EnetHost, &event, 5000) > 0
+		if (enet_host_service(m_EnetHost, &event, 5000) > 0
 			&& event.type == ENET_EVENT_TYPE_CONNECT)
 		{
 			std::cout << "Connection succeeded." << std::endl;
@@ -60,7 +61,7 @@ namespace rmkl {
 		{
 			enet_peer_reset(peer);
 			std::cout << "Connection failed." << std::endl;
-		}*/
+		}
 
 		// Init GLFW window
 
@@ -130,16 +131,16 @@ namespace rmkl {
 
 		m_Shader.reset(new Shader(vertexSrc, fragmentSrc));
 
-		float h = 6.0f;
-		float w = (h / m_WindowHeight) * m_WindowWidth;
-		m_Proj = glm::ortho(0.0f, w, 0.0f, h);
-
 		m_Pjs.try_emplace( 42, Pj{  42, 2, 1.5f });
 		m_Pjs.try_emplace( 69, Pj{  69, 2, 1.5f });
 		m_Pjs.try_emplace(117, Pj{ 117, 2, 1.5f });
 		m_Pjs.at(42).SetMode(PjModes::DUMMY);
 		m_Pjs.at(69).SetMode(PjModes::PREDICTED);
 		m_ControlledPj = 42;
+
+		int i = pings.size();
+		pings.try_emplace(i, std::chrono::high_resolution_clock::now());
+		NetMessage::SendToAll(NetMessage::Type::Ping, i, m_EnetHost);
 	}
 
 	GraphicApp::~GraphicApp()
@@ -162,14 +163,10 @@ namespace rmkl {
 		}
 	}
 
-	void GraphicApp::PollEvents()
-	{
-		glfwPollEvents();
-		//ProcessNetworkEvents();
-	}
-
 	void GraphicApp::FixedUpdate()
 	{
+		glfwPollEvents();
+
 		m_Stage->FixedUpdate();
 
 		//if (m_ControlledPj == -1) return;
@@ -211,9 +208,8 @@ namespace rmkl {
 		int tick = m_Stage->GetTick();
 		Input dummyInput = Input{ rawInput.x, rawInput.y, 0, tick };
 		Input localInput = Input{ rawInput.x, rawInput.y, 0, tick };
-		if ((tick % 30) > (30 - 30 * m_PacketLoss))
+		if ((tick % 30) < 30 * m_PacketLoss && m_PendingInputs.size() > 0)
 		{
-			//std::cout << tick << std::endl;
 			auto _pastInput = *m_PendingInputs.rbegin();
 			localInput.X = _pastInput.X;
 			localInput.Y = _pastInput.Y;
@@ -224,6 +220,8 @@ namespace rmkl {
 		dummyPj.FixedUpdate(dummyInput, *m_Stage);
 		dummyPj.History.erase(dummyPj.History.begin(), dummyPj.History.lower_bound(tick - 30));
 		dummyPj.History.emplace(dummyPj.SerializeState(tick));
+
+		SendInput(dummyInput);
 
 		Pj& localPj = m_Pjs.at(69);
 		localPj.FixedUpdate(localInput, *m_Stage);
@@ -249,13 +247,16 @@ namespace rmkl {
 
 	void GraphicApp::SendInput(Input input)
 	{
+
 		NetMessage::Type type = NetMessage::Type::Input;
+		int pingNumber = pings.size();
 		int count = static_cast<int>(m_PendingInputs.size());
 
-		size_t size = sizeof(NetMessage::Type) + sizeof(int) + (sizeof(Input) * count);
+		size_t size = sizeof(NetMessage::Type) + sizeof(int) * 2 + (sizeof(Input) * count);
 		char* packet = (char*)malloc(size);
 		size_t stride = 0;
 		NetMessage::pack(packet, stride, type);
+		NetMessage::pack(packet, stride, pingNumber);
 		NetMessage::pack(packet, stride, count);
 		for (int i = 0; i < count; i++) 
 		{
@@ -269,6 +270,8 @@ namespace rmkl {
 		ENetPacket* p = enet_packet_create(packet, size, ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
 		enet_host_broadcast(m_EnetHost, 0, p);
 		free(packet);
+
+		pings.try_emplace(pingNumber, std::chrono::high_resolution_clock::now());
 	}
 
 	void GraphicApp::OnNetworkConnected(const ENetEvent& e) {}
@@ -278,100 +281,121 @@ namespace rmkl {
 		e.peer->data = nullptr;
 	}
 
+	void GraphicApp::UpdateRtt(int ms)
+	{
+		if (_rtt == 0)
+			_rtt = ms;
+		else
+			_rtt = _rtt * 0.9f + ms * 0.1f;
+	}
+
 	void GraphicApp::OnNetworkReceived(const ENetEvent& e)
 	{
 		enet_uint8* data = e.packet->data;
 		NetMessage::Type type = *(NetMessage::Type*)(data);
-		switch (type)
+		if (type == NetMessage::Type::Ping)
 		{
-		case NetMessage::Type::StateUpdate:
-		{
-			size_t stride = sizeof(NetMessage::Type);
-			int count = NetMessage::unpack<int>(data, stride);
-			for (int i = 0; i < count; i++)
-			{
-				PjState state{
-					NetMessage::unpack<int>(data, stride),
-					NetMessage::unpack<int>(data, stride),
-					NetMessage::unpack<float>(data, stride),
-					NetMessage::unpack<float>(data, stride),
-					NetMessage::unpack<float>(data, stride),
-					NetMessage::unpack<float>(data, stride),
-					NetMessage::unpack<float>(data, stride),
-					NetMessage::unpack<float>(data, stride)
-				};
+			auto t1 = std::chrono::high_resolution_clock::now();
+			int i = NetMessage::unpackOne<int>(data);
+			auto rtt = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - pings.at(i));
+			UpdateRtt(rtt.count());
+		}
 
-				Pj& pj = m_Pjs.at(state.Id);
-				if (pj.GetMode() == PjModes::PREDICTED)
-				{
-					m_PendingInputs.erase(std::remove_if(m_PendingInputs.begin(), m_PendingInputs.end(),
-						[=](const Input& input) { return input.Tick <= state.Tick; }),
-						m_PendingInputs.end());
 
-					/*m_PendingInputs.erase(m_PendingInputs.begin(), 
-						std::lower_bound(m_PendingInputs.begin(), m_PendingInputs.end(), 
-							[=](const Input& input) { return input.Tick <= state.Tick; }));*/
-				}
 
-				pj.ProcessStateUpdate(state, *m_Stage);
-			}
-			break;
-		}
-		case NetMessage::Type::SpawnPj:
-		{
-			PjSpawnState spawn = NetMessage::unpackOne<PjSpawnState>(data);
-			m_Pjs.insert_or_assign(spawn.Id, Pj(spawn.Id, spawn.posX, spawn.posY));
-			std::cout << "spawn pj " << spawn.Id << std::endl;
-			break;
-		}
-		case NetMessage::Type::RemovePj:
-		{
-			int id = NetMessage::unpackOne<int>(data);
-			m_Pjs.erase(id);
-			std::cout << "remove pj " << id << std::endl;
-			break;
-		}
-		case NetMessage::Type::SetControlledPjId:
-		{
-			int id = NetMessage::unpackOne<int>(data);
 
-			if (m_ControlledPj != -1)
-				m_Pjs.at(m_ControlledPj).SetMode(PjModes::INTERPOLATED);
+		//enet_uint8* data = e.packet->data;
+		//NetMessage::Type type = *(NetMessage::Type*)(data);
+		//switch (type)
+		//{
+		//case NetMessage::Type::StateUpdate:
+		//{
+		//	size_t stride = sizeof(NetMessage::Type);
+		//	int count = NetMessage::unpack<int>(data, stride);
+		//	for (int i = 0; i < count; i++)
+		//	{
+		//		PjState state{
+		//			NetMessage::unpack<int>(data, stride),
+		//			NetMessage::unpack<int>(data, stride),
+		//			NetMessage::unpack<float>(data, stride),
+		//			NetMessage::unpack<float>(data, stride),
+		//			NetMessage::unpack<float>(data, stride),
+		//			NetMessage::unpack<float>(data, stride),
+		//			NetMessage::unpack<float>(data, stride),
+		//			NetMessage::unpack<float>(data, stride)
+		//		};
 
-			m_ControlledPj = id;
-			if (m_ControlledPj != -1)
-				m_Pjs.at(m_ControlledPj).SetMode(PjModes::PREDICTED);
+		//		Pj& pj = m_Pjs.at(state.Id);
+		//		if (pj.GetMode() == PjModes::PREDICTED)
+		//		{
+		//			m_PendingInputs.erase(std::remove_if(m_PendingInputs.begin(), m_PendingInputs.end(),
+		//				[=](const Input& input) { return input.Tick <= state.Tick; }),
+		//				m_PendingInputs.end());
 
-			std::cout << "set controlled pj " << id << std::endl;
-			break;
-		}
-		case NetMessage::Type::SetSpectatingPjId:
-		{
-			int id = NetMessage::unpackOne<int>(data);
-			m_SpectatingPj = id;
-			std::cout << "set spectating pj " << id << std::endl;
-			break;
-		}
-		case NetMessage::Type::SyncTickNumber:
-		{
-			int tick = NetMessage::unpackOne<int>(data);
-			float tickrate = 1.0f / 10; //FIXED_UPDATE_FPS;
-			float rtt = 0.15f; // TODO ------------------------------------------------------------
-			float serverInputBuffer = tickrate;
-			float forward = rtt + serverInputBuffer;
-			m_Stage->SetTick(tick + (int)(forward / tickrate) + 1);
-			std::cout << "sync ticknumber " << std::endl;
-			break;
-		}
-		case NetMessage::Type::Wall:
-		{
-			break;
-		}
-		case NetMessage::Type::ForceEmitter:
-		{
-			break;
-		}
-		}
+		//			/*m_PendingInputs.erase(m_PendingInputs.begin(), 
+		//				std::lower_bound(m_PendingInputs.begin(), m_PendingInputs.end(), 
+		//					[=](const Input& input) { return input.Tick <= state.Tick; }));*/
+		//		}
+
+		//		pj.ProcessStateUpdate(state, *m_Stage);
+		//	}
+		//	break;
+		//}
+		//case NetMessage::Type::SpawnPj:
+		//{
+		//	PjSpawnState spawn = NetMessage::unpackOne<PjSpawnState>(data);
+		//	m_Pjs.insert_or_assign(spawn.Id, Pj(spawn.Id, spawn.posX, spawn.posY));
+		//	std::cout << "spawn pj " << spawn.Id << std::endl;
+		//	break;
+		//}
+		//case NetMessage::Type::RemovePj:
+		//{
+		//	int id = NetMessage::unpackOne<int>(data);
+		//	m_Pjs.erase(id);
+		//	std::cout << "remove pj " << id << std::endl;
+		//	break;
+		//}
+		//case NetMessage::Type::SetControlledPjId:
+		//{
+		//	int id = NetMessage::unpackOne<int>(data);
+
+		//	if (m_ControlledPj != -1)
+		//		m_Pjs.at(m_ControlledPj).SetMode(PjModes::INTERPOLATED);
+
+		//	m_ControlledPj = id;
+		//	if (m_ControlledPj != -1)
+		//		m_Pjs.at(m_ControlledPj).SetMode(PjModes::PREDICTED);
+
+		//	std::cout << "set controlled pj " << id << std::endl;
+		//	break;
+		//}
+		//case NetMessage::Type::SetSpectatingPjId:
+		//{
+		//	int id = NetMessage::unpackOne<int>(data);
+		//	m_SpectatingPj = id;
+		//	std::cout << "set spectating pj " << id << std::endl;
+		//	break;
+		//}
+		//case NetMessage::Type::SyncTickNumber:
+		//{
+		//	int tick = NetMessage::unpackOne<int>(data);
+		//	float tickrate = 1.0f / 10; //FIXED_UPDATE_FPS;
+		//	float rtt = 0.15f; // TODO ------------------------------------------------------------
+		//	float serverInputBuffer = tickrate;
+		//	float forward = rtt + serverInputBuffer;
+		//	m_Stage->SetTick(tick + (int)(forward / tickrate) + 1);
+		//	std::cout << "sync ticknumber " << std::endl;
+		//	break;
+		//}
+		//case NetMessage::Type::Wall:
+		//{
+		//	break;
+		//}
+		//case NetMessage::Type::ForceEmitter:
+		//{
+		//	break;
+		//}
+		//}
 	}
 
 
@@ -392,15 +416,10 @@ namespace rmkl {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 		if (m_ControlledPj != -1)
-			m_Cam = glm::vec3(-m_Pjs.at(m_ControlledPj).GetDrawPos() + glm::vec2(4, 3), 0);
-		
+			m_Cam.SetPosition({ m_Pjs.at(m_ControlledPj).GetDrawPos() - glm::vec2(4, 3), 0 });
+
 		m_Shader->Bind();
-
-		m_View = glm::translate(glm::mat4x4(1.0f), m_Cam);
-		m_Model = glm::translate(glm::mat4x4(1.0f), glm::vec3(0));
-		glm::mat4x4 mvp = m_Proj * m_View * m_Model;
-		m_Shader->SetUniformMat4f("u_MVP", mvp);
-
+		m_Shader->SetUniformMat4f("u_MVP", m_Cam.GetViewProjectionMatrix());
 
 		m_Batch->Begin();
 		glm::vec4 wallColour = { 0, 0.5f, 1.0f, 0.5f };
@@ -471,7 +490,8 @@ namespace rmkl {
 		ImGui::Separator();
 
 		ImGui::Text("Physics tick %i", m_Stage->GetTick());
-		ImGui::Text("%ims RTT", m_EnetHost->peers->roundTripTime);
+		ImGui::Text("enet %ims RTT", GetRtt());
+		ImGui::Text("own  %ims RTT", _rtt);
 		ImGui::Text("%i pending inputs", m_PendingInputs.size());
 		ImGui::SliderFloat("Packet loss", &m_PacketLoss, 0.0f, 1.0f);
 
